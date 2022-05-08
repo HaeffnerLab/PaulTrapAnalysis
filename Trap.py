@@ -146,6 +146,10 @@ class Trap(list):
 		See Also
 		------
 		system.electrical_potential
+
+		Note
+		-----
+		Haven't implement the higher order derivative method yet
 		'''
 
 		x = np.asanyarray(x,dtype=np.double).reshape(-1,3)
@@ -179,6 +183,10 @@ class Trap(list):
 		See Also
 		------
 		system.electrical_potential
+
+		Note
+		-----
+		Haven't implement the higher order derivative method yet
 		'''
 		x = np.asanyarray(x,dtype=np.double).reshape(-1,3)
 		pot = np.zeros((x.shape[0],2*derivative+1),np.double)
@@ -190,3 +198,19 @@ class Trap(list):
 				# pot = expand_tensor(pot)
 				pass
 		return pot
+
+
+	def time_dependent_potential(self, x, derivative=0, t=0., expand=False):
+		'''Electric potential at an instant.
+
+			V_dc + cos(omega*t)*V_rf
+
+			See Also
+			-------
+			system.time_potential
+
+			Note
+			-----
+			Haven't implement the higher order derivative method yet
+			Include the frequency of the rf potential as well
+			'''

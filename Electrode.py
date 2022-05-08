@@ -22,10 +22,10 @@ class Electrode:
 	"""
 	__slots__ = "name dc rf".split()
 
-	def __init__(self,name='',dc=0.,rf=0.):
+	def __init__(self,name='',V_dc=0.,V_rf=0.):
 		self.name = name
-		self.dc = dc
-		self.rf = rf
+		self.V_dc = V_dc
+		self.V_rf = V_rf
 
 	def potential(self, x, derivative=0,voltage=1.,output=None):
 		'''Electrical potential contribution of this Electrode.

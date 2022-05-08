@@ -41,26 +41,26 @@ class Trap(list):
 			ei.name = ni
 
 	@property
-	def dcs(self):
+	def V_dcs(self):
 		'''Array of dc voltages of the electrodes
 		'''
-		return np.array([el.dc for el in self])
+		return np.array([el.V_dc for el in self])
 
-	@dcs.setter
-	def dcs(self, voltages):
+	@V_dcs.setter
+	def V_dcs(self, voltages):
 		for ei, vi in zip(self,voltages):
-			ei.dc = vi
+			ei.V_dc = vi
 
 	@property
-	def rfs(self):
+	def V_rfs(self):
 		'''Array of rf voltages of the electrodes.
 		'''
-		return np.array([el.rf for el in self])
+		return np.array([el.V_rf for el in self])
 
-	@rfs.setter
-	def rfs(self, voltages):
+	@V_rfs.setter
+	def V_rfs(self, voltages):
 		for ei, vi in zip(self, voltages):
-			ei.rf = vi
+			ei.V_rf = vi
 
 	def __getitem__(self, name_or_index):
 		'''Electrode lookup.
@@ -88,7 +88,7 @@ class Trap(list):
 	Electrode = __getitem__
 
 	@contextmanager
-	def with_voltages(self, dcs=None, rfs=None):
+	def with_voltages(self, V_dcs=None, V_rfs=None):
 		'''Returns a contextmanager with temporary voltage setting.
 
 		This is a convenient way to temporarily change the voltages
@@ -96,9 +96,9 @@ class Trap(list):
 
 		Parameters
 		------
-		dcs : array_like
+		V_dcs : array_like
 			dc voltages for all electrodes, or None to keep the same
-		rfs : array_like
+		V_rfs : array_like
 			dc voltages for all electrodes, or None to keep the same
 
 		Returns
@@ -109,21 +109,21 @@ class Trap(list):
 		Example
 		------
 		>>> t = Trap()
-		>>> with t.with_voltages(dcs = 0.5*s.dcs, rfs = [0,1]):
+		>>> with t.with_voltages(V_dcs = 0.5*s.V_dcs, V_rfs = [0,1]):
 				print(t.potential([0,0,1]))
 		'''
 
 		try:
-			if dcs is not None:
-				dcs, self.dcs = self.dcs, dcs
+			if V_dcs is not None:
+				V_dcs, self.V_dcs = self.V_dcs, V_dcs
 			if rfs is not None:
-				rfs, self.rfs = self.rfs, rfs
+				V_rfs, self.V_rfs = self.V_rfs, V_rfs
 			yield
 		finally:
-			if dcs is not None:
-				self.dcs = dcs
-			if rfs is not None:
-				self.rfs = rfs
+			if V_dcs is not None:
+				self.V_dcs = V_dcs
+			if V_rfs is not None:
+				self.V_rfs = V_rfs
 
 
 	def dc_potential(self, x, derivative=0,expand=False):
@@ -151,7 +151,7 @@ class Trap(list):
 		x = np.asanyarray(x,dtype=np.double).reshape(-1,3)
 		pot = np.zeros((x.shape[0],2*derivative+1),np.double)
 		for ei in self:
-			vi = getattr(ei,dc,None)
+			vi = getattr(ei,V_dc,None)
 			if vi:
 				ei.potential(x,derivative,voltage=vi,output=pot)
 			if expand:
@@ -183,7 +183,7 @@ class Trap(list):
 		x = np.asanyarray(x,dtype=np.double).reshape(-1,3)
 		pot = np.zeros((x.shape[0],2*derivative+1),np.double)
 		for ei in self:
-			vi = getattr(ei,rf,None)
+			vi = getattr(ei,V_rf,None)
 			if vi:
 				ei.potential(x,derivative,voltage=vi,output=pot)
 			if expand:

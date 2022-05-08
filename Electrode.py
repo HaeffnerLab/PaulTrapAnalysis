@@ -130,7 +130,7 @@ def from_ansys():
 	-----
 	GridLayout
 	'''
-	
+
 @classmethod
 def from_vtk():
 	'''Load grid potential data from vtk StructurePoints and create a 'GridLayout' object
@@ -143,6 +143,15 @@ def from_vtk():
 	GridLayout
 	'''
 
+def potential(self, x, derivative =0, r0=1.,output=None):
+	x = (x - self.origin[None, :])/self.step[None, :]
+	if output is None:
+		output = np.zeros((x.shape[0], 2*derivative+1), np.double)
+	dat = self.data[derivative]
+	for i in range(2*derivative+1):
+		output[:, i] += r0*map_coordinates(dat[..., i], x.T,
+			order=1, mode="nearest")
+	return out
 
 	
 

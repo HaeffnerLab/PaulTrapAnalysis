@@ -4,6 +4,7 @@ import logging
 import numpy as np
 from scipy import optimize, constants as ct
 from .Electrode import SimulatedElectrode
+from .utils import expand_tensor
 
 
 try:
@@ -116,7 +117,7 @@ class Trap(list):
 		try:
 			if V_dcs is not None:
 				V_dcs, self.V_dcs = self.V_dcs, V_dcs
-			if rfs is not None:
+			if V_rfs is not None:
 				V_rfs, self.V_rfs = self.V_rfs, V_rfs
 			yield
 		finally:
@@ -149,6 +150,7 @@ class Trap(list):
 		See Also
 		------
 		system.electrical_potential
+		utils.expand_tensor
 
 		Note
 		-----
@@ -162,7 +164,7 @@ class Trap(list):
 			if vi:
 				ei.potential(x,derivative,voltage=vi,output=pot)
 			if expand:
-				# pot = expand_tensor(pot)
+				pot = expand_tensor(pot)
 				pass
 		return pot
 
@@ -185,6 +187,7 @@ class Trap(list):
 		See Also
 		------
 		system.electrical_potential
+		utils.expand_tensor
 
 		Note
 		-----
@@ -197,7 +200,7 @@ class Trap(list):
 			if vi:
 				ei.potential(x,derivative,voltage=vi,output=pot)
 			if expand:
-				# pot = expand_tensor(pot)
+				pot = expand_tensor(pot)
 				pass
 		return pot
 
@@ -235,11 +238,34 @@ class Trap(list):
 		rf = self.rf_potential(x, derivative, expand)
 		return dc + np.cos(omega*t)*rf
 
+
 	def pseudo_potential(self, x, derivative = 0):
 		'''The pseudopotential/ ponderomotive potential
 
 		Parameters
+		-------
+		x : array_like, shape (n,3)
+			Points to evaluate the pseudopotential at
+		derivative: int <= 2
+			Derivative order. Currently only implemented up to 2nd order
+
+		Returns
+		------
+		potential, array, shape (n, 3, ..., 3)
+			Pseudopotential derivative. Fully expanded since this is not generally harmonic
 		'''
+
+		p = [self.rf_potential(x, derivative=i, expand=True) for i in range(1, derivative+2)] # pseudopotential is proportional to field (derivative = 1) squared
+		if derivative == 0:
+			return np.einsum("ij,ij->i",p[0],p[0])
+		elif derivative == 1:
+			return 2*np.einsum("ij,ijk->ik",p[0],p[1])
+		elif derivative == 2:
+			return 2*(np.einsum("ijk,ijl -> ikl",p[1],p[1])+np.einsum("ij,ijkl->ikl",p[0],p[2]))
+		else:
+			raise ValueError("only know how to generate pseupotentials up to 2nd order")
+		
+
 		return
 
 	def potential(self, x, derivative=0):
@@ -260,6 +286,35 @@ class Trap(list):
 		dc = self.dc_potential(x,derivative,expand=True)
 		rf = self.pseudo_potential(x, derivative)
 		return dc + rf
+
+	def individual_potential_contribution(self, x, derivative=0):
+		'''Individual contributions to the electrical potential from all the electrodes.
+		Returns an array of the contributions by each electrode in the trap to the potential at points x
+		Each electrode is taken to have unit voltage while grounding all other electrodes
+
+		Parameters
+		-------
+		x : array_like, shape (n,3)
+			Points to evaluate the potential at
+		derivative: int
+			Derivative order
+
+		Returns
+		-------
+		potential_matrix : array, shape (m,n,l)
+			`m` is the electrode index (index into `self`). `n` is the point index,
+			`l = 2*derivative + 1` is the derivative index
+
+		See Also
+		-------
+		system.individual_potential
+		'''
+		x = np.asanyarray(x, dtype = np.double).reshape(-1,3)
+		potential_matrix = np.zeros((len(self), x.shape[0], 2*derivative+1),np.double)
+		for i, ei in enumerate(self):
+			ei.potential(x, derivative, voltage=1, output=potential_matrix[i])
+		return potential_matrix
+
 
 
 

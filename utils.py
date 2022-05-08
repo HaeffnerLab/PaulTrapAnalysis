@@ -147,3 +147,36 @@ def construct_derivative(deriv, idx):
         Axis to derive along
     """
     return _derive_map[(deriv, idx)]
+
+def expand_tensor(c, order=None)
+'''From the minimal linearly independent entries of a derivative of a harmonic field
+build the complete tensor using its symmetry and Laplace.
+
+Parameters
+------
+c: array_like, shape(n,m), m = 2*order+1
+order: int or None
+
+Returns
+-----
+d: array_like, shape(n,3,....,3)
+
+See also
+------
+utils.expand_tensor
+'''
+    if order is None:
+    order = (c.shape[-1]-1)//2
+    if order == 0:
+        return c[..., 0]
+    elif order == 1:
+        return c
+    else:
+        shape = c.shape[:-1]
+        d = np.empty(shape + (3**order,), c.dtype)
+        for i, j in enumerate(_expand_map[order]):
+            if type(j) is int:
+                d[..., i] = c[..., j]
+            else:
+                d[..., i] = -c[..., j[0]]-c[..., j[1]] # laplace
+        return d.reshape(shape + (3,)*order)

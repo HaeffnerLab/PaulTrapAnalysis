@@ -65,7 +65,7 @@ class Electrode:
 
 		pass
 
-	def plot(self ax, label=None, color=None,**kw):
+	def plot(self, ax, label=None, color=None,**kw):
 		'''Visualize and plot this electrode in the supplied axes.
 
 		'''
@@ -151,7 +151,7 @@ def potential(self, x, derivative =0, r0=1.,output=None):
 	for i in range(2*derivative+1):
 		output[:, i] += r0*map_coordinates(dat[..., i], x.T,
 			order=1, mode="nearest")
-	return out
+	return output
 
 	
 

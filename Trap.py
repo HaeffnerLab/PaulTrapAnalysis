@@ -126,15 +126,13 @@ class Trap(list):
 				self.rfs = rfs
 
 
-	def static_potential(self, x, type='dc',derivative=0,expand=False):
-		'''Static electrical potential derivative.
+	def dc_potential(self, x, derivative=0,expand=False):
+		'''Electrical potential derivative from the DC voltages contribution.
 
 		Parameters
 		-------
 		x: array_like, shape (n,3)
 			Positions to evaluate the potential at.
-		type: {"dc","rf"}
-
 		derivative: int
 			Derivative order
 		expand: bool
@@ -149,3 +147,46 @@ class Trap(list):
 		------
 		system.electrical_potential
 		'''
+
+		x = np.asanyarray(x,dtype=np.double).reshape(-1,3)
+		pot = np.zeros((x.shape[0],2*derivative+1),np.double)
+		for ei in self:
+			vi = getattr(ei,dc,None)
+			if vi:
+				ei.potential(x,derivative,voltage=vi,output=pot)
+			if expand:
+				# pot = expand_tensor(pot)
+				pass
+		return pot
+
+	def rf_potential(self, x, derivative=0,expand=False):
+		'''Electrical potential derivative from the RF voltages contribution.
+
+		Parameters
+		-------
+		x: array_like, shape (n,3)
+			Positions to evaluate the potential at.
+		derivative: int
+			Derivative order
+		expand: bool
+			If True, return the fully expanded tensor, else return the reduced form.
+
+		Returns
+		------
+		potential: array
+			Potential at 'x'
+
+		See Also
+		------
+		system.electrical_potential
+		'''
+		x = np.asanyarray(x,dtype=np.double).reshape(-1,3)
+		pot = np.zeros((x.shape[0],2*derivative+1),np.double)
+		for ei in self:
+			vi = getattr(ei,rf,None)
+			if vi:
+				ei.potential(x,derivative,voltage=vi,output=pot)
+			if expand:
+				# pot = expand_tensor(pot)
+				pass
+		return pot

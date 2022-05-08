@@ -134,7 +134,7 @@ class SimulatedElectrode(Electrode):
 		'''
 
 	@classmethod
-	def from_vtk(cls, fil, maxderiv=4):
+	def from_vtk(cls, elec_name, file, maxderiv=4):
 		'''Load grid potential data from vtk StructurePoints and create a 'GridLayout' object
 
 		Parameters
@@ -145,7 +145,7 @@ class SimulatedElectrode(Electrode):
 		GridLayout
 		'''
 		from tvtk.api import tvtk
-		sgr = tvtk.StructuredPointsReader(file_name=fil)
+		sgr = tvtk.StructuredPointsReader(file_name=file)
 		sgr.update()
 		sg = sgr.output
 		pot = [None, None]
@@ -163,7 +163,7 @@ class SimulatedElectrode(Electrode):
 			dim = sp.number_of_components
 			data = data.reshape(dimensions[::-1]+(dim,)).transpose(2, 1, 0, 3)
 			pot[int((dim-1)/2)] = data
-		obj = cls(origin=origin, step=spacing, data=pot)
+		obj = cls(name=elec_name, origin=origin, step=spacing, data=pot)
 		obj.generate(maxderiv)
 		return obj
 

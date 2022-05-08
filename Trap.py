@@ -2,6 +2,7 @@ import warnings, itertools
 from contextlib import contextmanager
 import logging
 import numpy as np
+import pandas as pd
 from scipy import optimize, constants as ct
 from .Electrode import SimulatedElectrode
 from .utils import expand_tensor
@@ -45,23 +46,27 @@ class Trap(list):
 	def V_dcs(self):
 		'''Array of dc voltages of the electrodes
 		'''
-		return np.array([el.V_dc for el in self])
+		return pd.Series({el.name: el.V_dc for el in self})
 
 	@V_dcs.setter
 	def V_dcs(self, voltages):
-		for ei, vi in zip(self,voltages):
-			ei.V_dc = vi
+		'''Voltages is in dictionary format, example: voltages = {'DC1': 1, 'DC2': 0}
+		'''
+		for el in self:
+			el.V_dc = voltages[el.name]
 
 	@property
 	def V_rfs(self):
 		'''Array of rf voltages of the electrodes.
 		'''
-		return np.array([el.V_rf for el in self])
+		return pd.Series({el.name: el.V_rf for el in self})
 
 	@V_rfs.setter
 	def V_rfs(self, voltages):
-		for ei, vi in zip(self, voltages):
-			ei.V_rf = vi
+		'''Voltages is in dictionary format, example: voltages = {'RF1': 100, 'RF2': -100}
+		'''
+		for el in self:
+			el.V_rf = voltages[el.name]
 
 	def __getitem__(self, name_or_index):
 		'''Electrode lookup.

@@ -1,4 +1,5 @@
 from itertools import product
+import numpy as np
 
 _derivative_names = [[""]] + [s.split() for s in [
     "x y z",
@@ -148,25 +149,25 @@ def construct_derivative(deriv, idx):
     """
     return _derive_map[(deriv, idx)]
 
-def expand_tensor(c, order=None)
-'''From the minimal linearly independent entries of a derivative of a harmonic field
-build the complete tensor using its symmetry and Laplace.
+def expand_tensor(c, order=None):
+    '''From the minimal linearly independent entries of a derivative of a harmonic field
+    build the complete tensor using its symmetry and Laplace.
 
-Parameters
-------
-c: array_like, shape(n,m), m = 2*order+1
-order: int or None
+    Parameters
+    ------
+    c: array_like, shape(n,m), m = 2*order+1
+    order: int or None
 
-Returns
------
-d: array_like, shape(n,3,....,3)
+    Returns
+    -----
+    d: array_like, shape(n,3,....,3)
 
-See also
-------
-utils.expand_tensor
-'''
+    See also
+    ------
+    utils.expand_tensor
+    '''
     if order is None:
-    order = (c.shape[-1]-1)//2
+        order = (c.shape[-1]-1)//2
     if order == 0:
         return c[..., 0]
     elif order == 1:

@@ -202,7 +202,7 @@ class Trap(list):
 		return pot
 
 
-	def time_dependent_potential(self, x, derivative=0, t=0., omega=2*np.pi*40.E6.,expand=False):
+	def time_dependent_potential(self, x, derivative=0, t=0., omega=2*np.pi*40.E6,expand=False):
 		'''Electric potential at an instant. No pseudopotential averaging.
 
 			V_dc + cos(omega*t)*V_rf

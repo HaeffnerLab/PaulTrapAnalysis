@@ -1,6 +1,8 @@
 
 import numpy as np
 from scipy.ndimage.interpolation import map_coordinates
+from .utils import construct_derivative
+
 
 class Electrode:
 	"""An electrode of a Paul trap.
@@ -20,9 +22,9 @@ class Electrode:
 		the square of its RF voltage.
 
 	"""
-	__slots__ = "name dc rf".split()
+	__slots__ = "name V_dc V_rf".split()
 
-	def __init__(self,name='',V_dc=0.,V_rf=0.):
+	def __init__(self, name='', V_dc=0., V_rf=0.):
 		self.name = name
 		self.V_dc = V_dc
 		self.V_rf = V_rf
@@ -95,63 +97,124 @@ class SimulatedElectrode(Electrode):
 	See Also
 	---------
 	Electrode
-		'name','dc','rf' attributes/parameters
+		'name','V_dc','V_rf' attributes/parameters
 
 '''
-__slots__ = "data origin step".split()
+	__slots__ = "data origin step".split()
 
-def __init__(self, data = [], origin = (0,0,0), step=(1, 1, 1),**kwargs):
-	super(SimulatedElectrode, self).__init__(**kwargs)
-	self.data = [np.asanyarray(i, np.double) for i in data]
-	self.origin = np.asanyarray(origin, np.double)
-	self.step = np.asanyarray(step,np.double)
+	def __init__(self, data = [], origin = (0,0,0), step=(1, 1, 1),**kwargs):
+		super(SimulatedElectrode, self).__init__(**kwargs)
+		self.data = [np.asanyarray(i, np.double) for i in data]
+		self.origin = np.asanyarray(origin, np.double)
+		self.step = np.asanyarray(step,np.double)
 
 
-@classmethod
-def from_bem():
-	'''Create a 'SimulatedElectrode' object from a 'bem.result.Result' instance
+	@classmethod
+	def from_bem():
+		'''Create a 'SimulatedElectrode' object from a 'bem.result.Result' instance
 
-	Parameters
-	-----
+		Parameters
+		-----
 
-	Returns
-	-----
-	SimulatedElectrode
-	'''
-@classmethod
-def from_ansys():
-	'''Load grid potential data from fld file (exported from ansys) and create a 'GridLayout' object
-	fld file: potential data file exported from ansys without grid points
+		Returns
+		-----
+		SimulatedElectrode
+		'''
+	@classmethod
+	def from_ansys():
+		'''Load grid potential data from fld file (exported from ansys) and create a 'GridLayout' object
+		fld file: potential data file exported from ansys without grid points
 
-	Parameters
-	-------
+		Parameters
+		-------
 
-	Returns
-	-----
-	GridLayout
-	'''
+		Returns
+		-----
+		GridLayout
+		'''
 
-@classmethod
-def from_vtk():
-	'''Load grid potential data from vtk StructurePoints and create a 'GridLayout' object
+	@classmethod
+	def from_vtk(cls, fil, maxderiv=4):
+		'''Load grid potential data from vtk StructurePoints and create a 'GridLayout' object
 
-	Parameters
-	-------
+		Parameters
+		-------
 
-	Returns
-	-----
-	GridLayout
-	'''
+		Returns
+		-----
+		GridLayout
+		'''
+		from tvtk.api import tvtk
+		sgr = tvtk.StructuredPointsReader(file_name=fil)
+		sgr.update()
+		sg = sgr.output
+		pot = [None, None]
+		for i in range(sg.point_data.number_of_arrays):
+			name = sg.point_data.get_array_name(i)
+			if "_pondpot" in name:
+				continue # not harmonic, do not use it
+			elif name not in ("potential", "field"):
+				continue
+			sp = sg.point_data.get_array(i)
+			data = sp.to_array()
+			spacing = sg.spacing
+			origin = sg.origin
+			dimensions = tuple(sg.dimensions)
+			dim = sp.number_of_components
+			data = data.reshape(dimensions[::-1]+(dim,)).transpose(2, 1, 0, 3)
+			pot[int((dim-1)/2)] = data
+		obj = cls(origin=origin, step=spacing, data=pot)
+		obj.generate(maxderiv)
+		return obj
 
-def potential(self, x, derivative =0, voltage=1.,output=None):
-	x = (x - self.origin[None, :])/self.step[None, :]
-	if output is None:
-		output = np.zeros((x.shape[0], 2*derivative+1), np.double)
-	dat = self.data[derivative]
-	for i in range(2*derivative+1):
-		output[:, i] += voltage*map_coordinates(dat[..., i], x.T,
-			order=1, mode="nearest")
-	return output
+	def generate(self, maxderiv=4):
+		"""Generate missing derivative orders by successive finite
+		differences from the already present derivative orders.
+		.. note:: Finite differences amplify noise and discontinuities
+			in the original data.
+		Parameters
+		----------
+		maxderiv : int
+			Maximum derivative order to precompute if not already
+			present.
+		"""
+		for deriv in range(maxderiv):
+			if len(self.data) < deriv+1:
+				self.data.append(self.derive(deriv))
+			ddata = self.data[deriv]
+			assert ddata.ndim == 4, ddata.ndim
+			assert ddata.shape[-1] == 2*deriv+1, ddata.shape
+			if deriv > 0:
+				assert ddata.shape[:-1] == self.data[deriv-1].shape[:-1]
+
+	def derive(self, deriv):
+		"""Take finite differences along each axis.
+		Parameters
+		----------
+		deriv : derivative order to generate
+		Returns
+		-------
+		data : array, shape (n, m, k, l)
+			New derivative data, l = 2*deriv + 1
+		"""
+		odata = self.data[deriv-1]
+		ddata = np.empty(odata.shape[:-1] + (2*deriv+1,), np.double)
+		for i in range(2*deriv+1):
+			(e, j), k = construct_derivative(deriv, i)
+			# TODO triple work
+			grad = np.gradient(odata[..., j], *self.step)[k]
+			ddata[..., i] = grad
+		return ddata
+
+	def potential(self, x, derivative =0, voltage=1.,output=None):
+		x = (x - self.origin[None, :])/self.step[None, :]
+		if output is None:
+			output = np.zeros((x.shape[0], 2*derivative+1), np.double)
+		dat = self.data[derivative]
+		for i in range(2*derivative+1):
+			output[:, i] += voltage*map_coordinates(dat[..., i], x.T,
+				order=1, mode="nearest")
+		return output
 
 	
 

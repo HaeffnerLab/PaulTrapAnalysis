@@ -27,7 +27,7 @@ class Electrode:
 		self.dc = dc
 		self.rf = rf
 
-	def potential(self, x, derivative=0,r0=1.,output=None):
+	def potential(self, x, derivative=0,voltage=1.,output=None):
 		'''Electrical potential contribution of this Electrode.
 
 		Return the specified derivative of the electrical contribution of this
@@ -41,7 +41,7 @@ class Electrode:
 		derivative : int
 			Order of the derivative of the potential. derivative = 0 returns the potential itself,
 			`derivative=1` the field/force, `derivative=2` the curvature/hessian.
-		r0 : float
+		voltage : float
 			Scaling factor of the potential.
 		output: None or array_like, shape (n,2*derivative+1), double
 			Array to add the potential contribution to. Needs to be zeroed before.
@@ -143,13 +143,13 @@ def from_vtk():
 	GridLayout
 	'''
 
-def potential(self, x, derivative =0, r0=1.,output=None):
+def potential(self, x, derivative =0, voltage=1.,output=None):
 	x = (x - self.origin[None, :])/self.step[None, :]
 	if output is None:
 		output = np.zeros((x.shape[0], 2*derivative+1), np.double)
 	dat = self.data[derivative]
 	for i in range(2*derivative+1):
-		output[:, i] += r0*map_coordinates(dat[..., i], x.T,
+		output[:, i] += voltage*map_coordinates(dat[..., i], x.T,
 			order=1, mode="nearest")
 	return output
 

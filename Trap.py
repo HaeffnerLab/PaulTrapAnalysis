@@ -125,6 +125,27 @@ class Trap(list):
 			if rfs is not None:
 				self.rfs = rfs
 
-	
-	
-	
+
+	def static_potential(self, x, type='dc',derivative=0,expand=False):
+		'''Static electrical potential derivative.
+
+		Parameters
+		-------
+		x: array_like, shape (n,3)
+			Positions to evaluate the potential at.
+		type: {"dc","rf"}
+
+		derivative: int
+			Derivative order
+		expand: bool
+			If True, return the fully expanded tensor, else return the reduced form.
+
+		Returns
+		------
+		potential: array
+			Potential at 'x'
+
+		See Also
+		------
+		system.electrical_potential
+		'''

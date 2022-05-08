@@ -20,6 +20,7 @@ class Electrode:
 		the square of its RF voltage.
 
 	"""
+	__slots__ = "name dc rf".split()
 
 	def __init__(self,name='',dc=0.,rf=0.):
 		self.name = name
@@ -73,30 +74,63 @@ class Electrode:
 
 
 
-class GridElectrode(Electrode):
+class SimulatedElectrode(Electrode):
 	'''Electrode based on a precalculated grid of electrical potentials. 
-	(From either BEM or FEM methods)
+	(From either BEM or FEM simulation methods)
+		The scaling is in um.
 
 	Parameters
 	---------
-	data : 
-	origin :
-	spacing : 
+	data : list of array_like, shape (n, m, k, l)
+		List of potential derivatives. The ith data entry is of
+		order (l-1)/2. 'l=1' is the simulated electrical potential. 
+		`derivative=1` the field/force, `derivative=2` the curvature/hessian.
+		Each entry is shaped as a (n, m, k) grid.
+	origin : array_like, shape (3,)
+		Position of the (n, m, k) = (0,0,0) voxel
+	step : array_like, shape (3,)
+		Voxel pitch. Step of the calculated grid
+
+
+	See Also
+	---------
+	Electrode
+		'name','dc','rf' attributes/parameters
 
 '''
+__slots__ = "data origin step".split()
+
+def __init__(self, data = [], origin = (0,0,0), step=(1, 1, 1),**kwargs):
+	super(SimulatedElectrode, self).__init__(**kwargs)
+	self.data = [np.asanyarray(i, np.double) for i in data]
+	self.origin = np.asanyarray(origin, np.double)
+	self.step = np.asanyarray(step,np.double)
+
 
 @classmethod
-def from_result():
-	'''Create a 'GridLayout' object from a 'bem.result.Result' instance
+def from_bem():
+	'''Create a 'SimulatedElectrode' object from a 'bem.result.Result' instance
 
 	Parameters
 	-----
 
 	Returns
 	-----
+	SimulatedElectrode
+	'''
+@classmethod
+def from_ansys():
+	'''Load grid potential data from fld file (exported from ansys) and create a 'GridLayout' object
+	fld file: potential data file exported from ansys without grid points
+
+	Parameters
+	-------
+
+	Returns
+	-----
 	GridLayout
 	'''
-
+	
 @classmethod
 def from_vtk():
 	'''Load grid potential data from vtk StructurePoints and create a 'GridLayout' object
@@ -112,17 +146,6 @@ def from_vtk():
 
 	
 
-@classmethod
-def from_fld():
-	'''Load grid potential data from fld file (exported from ansys) and create a 'GridLayout' object
-	fld file: potential data file exported from ansys without grid points
 
-	Parameters
-	-------
-
-	Returns
-	-----
-	GridLayout
-	'''
 
 

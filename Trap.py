@@ -142,6 +142,9 @@ class Trap(list):
 		------
 		potential: array
 			Potential at 'x'
+			If expand == False, shape (n, l) and l = 2*derivative+1 is the derivative index
+			Else, shape (n, 3, ..., 3) and returns the fully expanded tensorial form
+
 
 		See Also
 		------
@@ -177,9 +180,8 @@ class Trap(list):
 
 		Returns
 		------
-		potential: array
-			Potential at 'x'
-
+		See `dc_potential`
+		
 		See Also
 		------
 		system.electrical_potential
@@ -200,10 +202,25 @@ class Trap(list):
 		return pot
 
 
-	def time_dependent_potential(self, x, derivative=0, t=0., expand=False):
-		'''Electric potential at an instant.
+	def time_dependent_potential(self, x, derivative=0, t=0., omega=2*np.pi*40.E6.,expand=False):
+		'''Electric potential at an instant. No pseudopotential averaging.
 
 			V_dc + cos(omega*t)*V_rf
+
+			Parameters
+			-------
+			derivative: int
+				Derivative order
+			t: float
+				Time instant
+			omega: float
+				RF frequency
+			expand: bool
+				Expand to full tensor form if True
+
+			Returns
+			-------
+			See `dc_potential`
 
 			See Also
 			-------
@@ -213,4 +230,36 @@ class Trap(list):
 			-----
 			Haven't implement the higher order derivative method yet
 			Include the frequency of the rf potential as well
-			'''
+		'''
+		dc = self.dc_potential(x, derivative, expand)
+		rf = self.rf_potential(x, derivative, expand)
+		return dc + np.cos(omega*t)*rf
+
+	def pseudo_potential(self, x, derivative = 0):
+		'''The pseudopotential/ ponderomotive potential
+
+		Parameters
+		'''
+		return
+
+	def potential(self, x, derivative=0):
+		'''Combined electrical and pseudo potential.
+
+		Parameters
+		------
+		x: array, shape (n,3)
+			Points to evaluate at.
+		derivative : 
+			Order of derivative
+
+		Returns
+		------
+		potential: array
+
+		'''
+		dc = self.dc_potential(x,derivative,expand=True)
+		rf = self.pseudo_potential(x, derivative)
+		return dc + rf
+
+
+

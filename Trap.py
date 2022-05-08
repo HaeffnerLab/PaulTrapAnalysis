@@ -61,5 +61,70 @@ class Trap(list):
 	def rfs(self, voltages):
 		for ei, vi in zip(self, voltages):
 			ei.rf = vi
+
+	def __getitem__(self, name_or_index):
+		'''Electrode lookup.
+
+
+		Returns
+		------
+		Electrode
+			The electrode given by its name or index.
+			None if not found by name
+
+		Raises
+		------
+		IndexError
+			If electrode index does not exist
+		'''
+
+		try:
+			return list.__getitem__(self,name_or_index)
+		except TypeError:
+			for ei in self:
+				if ei.name == name_or_index:
+					return ei
+
+	Electrode = __getitem__
+
+	@contextmanager
+	def with_voltages(self, dcs=None, rfs=None):
+		'''Returns a contextmanager with temporary voltage setting.
+
+		This is a convenient way to temporarily change the voltages
+		and they are reset to their old values.
+
+		Parameters
+		------
+		dcs : array_like
+			dc voltages for all electrodes, or None to keep the same
+		rfs : array_like
+			dc voltages for all electrodes, or None to keep the same
+
+		Returns
+		------
+		contextmanager
+
+
+		Example
+		------
+		>>> t = Trap()
+		>>> with t.with_voltages(dcs = 0.5*s.dcs, rfs = [0,1]):
+				print(t.potential([0,0,1]))
+		'''
+
+		try:
+			if dcs is not None:
+				dcs, self.dcs = self.dcs, dcs
+			if rfs is not None:
+				rfs, self.rfs = self.rfs, rfs
+			yield
+		finally:
+			if dcs is not None:
+				self.dcs = dcs
+			if rfs is not None:
+				self.rfs = rfs
+
+	
 	
 	

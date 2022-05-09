@@ -273,7 +273,7 @@ class Trap(list):
 
 		return
 
-	def potential(self, x, derivative=0):
+	def total_potential(self, x, derivative=0):
 		'''Combined electrical and pseudo potential.
 
 		Parameters

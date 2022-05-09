@@ -207,12 +207,12 @@ class SimulatedElectrode(Electrode):
 		return ddata
 
 	def potential(self, x, derivative =0, voltage=1.,output=None):
-		x = (x - self.origin[None, :])/self.step[None, :]
+		x_index = (x - self.origin[None, :])/self.step[None, :]
 		if output is None:
-			output = np.zeros((x.shape[0], 2*derivative+1), np.double)
+			output = np.zeros((x_index.shape[0], 2*derivative+1), np.double)
 		dat = self.data[derivative]
 		for i in range(2*derivative+1):
-			output[:, i] += voltage*map_coordinates(dat[..., i], x.T,
+			output[:, i] += voltage*map_coordinates(dat[..., i], x_index.T,
 				order=1, mode="nearest")
 		return output
 

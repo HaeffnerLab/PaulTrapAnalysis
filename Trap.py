@@ -165,7 +165,7 @@ class Trap(list):
 		x = np.asanyarray(x,dtype=np.double).reshape(-1,3)
 		pot = np.zeros((x.shape[0],2*derivative+1),np.double)
 		for ei in self:
-			vi = getattr(ei,V_dc,None)
+			vi = getattr(ei, 'V_dc', None)
 			if vi:
 				ei.potential(x,derivative,voltage=vi,output=pot)
 			if expand:
@@ -201,7 +201,7 @@ class Trap(list):
 		x = np.asanyarray(x,dtype=np.double).reshape(-1,3)
 		pot = np.zeros((x.shape[0],2*derivative+1),np.double)
 		for ei in self:
-			vi = getattr(ei,V_rf,None)
+			vi = getattr(ei, 'V_rf', None)
 			if vi:
 				ei.potential(x,derivative,voltage=vi,output=pot)
 			if expand:

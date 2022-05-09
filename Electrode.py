@@ -157,13 +157,13 @@ class SimulatedElectrode(Electrode):
 				continue
 			sp = sg.point_data.get_array(i)
 			data = sp.to_array()
-			spacing = sg.spacing
+			step = sg.spacing
 			origin = sg.origin
 			dimensions = tuple(sg.dimensions)
 			dim = sp.number_of_components
 			data = data.reshape(dimensions[::-1]+(dim,)).transpose(2, 1, 0, 3)
 			pot[int((dim-1)/2)] = data
-		obj = cls(name=elec_name, origin=origin, step=spacing, data=pot)
+		obj = cls(name=elec_name, origin=origin, step=step, data=pot)
 		obj.generate(maxderiv)
 		return obj
 

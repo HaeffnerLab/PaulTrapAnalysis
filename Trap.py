@@ -38,12 +38,13 @@ class Trap():
 	'''
 	
 
-	def __init__(self, electrodes = OrderedDict(), mass = 40*ct.atomic_mass, charge = ct.elementary_charge, scale = 1.e-6,  **kwargs):
+	def __init__(self, electrodes = OrderedDict(), mass = 40*ct.atomic_mass, charge = ct.elementary_charge, scale = 1.e-6, Omega = 50.E6,  **kwargs):
 		
 		self.electrodes = electrodes
 		self.config = OrderedDict([('mass', mass),
                       ('charge', charge),
-                      ('scale', scale)])
+                      ('scale', scale),
+                      ('Omega', Omega)])
 
 	@property
 	def names(self):
@@ -111,78 +112,80 @@ class Trap():
 
 	# Electrode = __getitem__
 
-	# @contextmanager
-	# def with_voltages(self, V_dcs=None, V_rfs=None):
-	# 	'''Returns a contextmanager with temporary voltage setting.
+	@contextmanager
+	def with_voltages(self, V_dcs=None, V_rfs=None):
+		'''Returns a contextmanager with temporary voltage setting.
 
-	# 	This is a convenient way to temporarily change the voltages
-	# 	and they are reset to their old values.
+		This is a convenient way to temporarily change the voltages
+		and they are reset to their old values.
 
-	# 	Parameters
-	# 	------
-	# 	V_dcs : dictionary format
-	# 		dc voltages for specific electrodes, or don't specify to keep the same
-	# 	V_rfs : dictionary format
-	# 		dc voltages for specific electrodes, or don't specify to keep the same
+		Parameters
+		------
+		V_dcs : dictionary format
+			dc voltages for specific electrodes, or don't include in the dictionary/or None to keep the same
+		V_rfs : dictionary format
+			dc voltages for specific electrodes, or don't include in the dictionary/or None to keep the same
 
-	# 	Returns
-	# 	------
-	# 	contextmanager
+		Returns
+		------
+		contextmanager
 
 
-	# 	Example
-	# 	------
-	# 	>>> t = Trap()
-	# 	>>> with t.with_voltages(V_dcs = {'DC1': 1, 'DC2': 0}, V_rfs = {'RF1': 100, 'RF2': -100}):
-	# 			print(t.potential([0,0,1]))
-	# 	'''
+		Example
+		------
+		>>> t = Trap()
+		>>> with t.with_voltages(V_dcs = {'DC1': 1, 'DC2': 0}, V_rfs = {'RF1': 100, 'RF2': -100}):
+				print(t.potential([0,0,1]))
+		'''
 
-	# 	try:
-	# 		if V_dcs is not None:
-	# 			V_dcs, self.V_dcs = self.V_dcs, V_dcs
-	# 		if V_rfs is not None:
-	# 			V_rfs, self.V_rfs = self.V_rfs, V_rfs
-	# 		yield
-	# 	finally:
-	# 		if V_dcs is not None:
-	# 			self.V_dcs = V_dcs
-	# 		if V_rfs is not None:
-	# 			self.V_rfs = V_rfs
+		try:
+			if V_dcs is not None:
+				V_dcs, self.V_dcs = self.V_dcs, V_dcs
+			if V_rfs is not None:
+				V_rfs, self.V_rfs = self.V_rfs, V_rfs
+			yield
+		finally:
+			if V_dcs is not None:
+				self.V_dcs = V_dcs
+			if V_rfs is not None:
+				self.V_rfs = V_rfs
 
-	# @contextmanager
-	# def with_config(self, config):
-	# 	'''Returns a contextmanager with temporary voltage setting.
+	@contextmanager
+	def with_config(self, new_config=None):
+		'''Returns a contextmanager with temporary config setting.
 
-	# 	This is a convenient way to temporarily change the configs
-	# 	and they are reset to their old values.
+		This is a convenient way to temporarily change the configs
+		and they are reset to their old values.
 
-	# 	Parameters
-	# 	------
-	# 	config : dictionary format
-	# 		dc voltages for specific electrodes, or don't specify to keep the same
+		Parameters
+		------
+		config : dictionary format
 		
-	# 	Returns
-	# 	------
-	# 	contextmanager
+		Returns
+		------
+		contextmanager
 
 
-	# 	Example
-	# 	------
-	# 	>>> t = Trap()
-	# 	>>> with t.with_config({'scale' = 1.e-3}):
-	# 			print(t.potential([0,0,1]))
-	# 	'''
-	# 	try:
-	# 		if V_dcs is not None:
-	# 			V_dcs, self.V_dcs = self.V_dcs, V_dcs
-	# 		if V_rfs is not None:
-	# 			V_rfs, self.V_rfs = self.V_rfs, V_rfs
-	# 		yield
-	# 	finally:
-	# 		if V_dcs is not None:
-	# 			self.V_dcs = V_dcs
-	# 		if V_rfs is not None:
-	# 			self.V_rfs = V_rfs
+		Example
+		------
+		>>> t = Trap()
+		>>> with t.with_config({'scale' = 1.e-3}):
+				print(t.potential([0,0,1]))
+		'''
+		try:
+			if new_config is not None:
+				old_config = OrderedDict()
+				for key, value in new_config.items():
+					old_config.update(key:self.config[key])
+					self.config[key] = value
+			
+			yield
+		finally:
+			if new_config is not None:
+				for key, value in old_config.items():
+					self.config[key] = value
+
+			
 
 
 	def dc_potential(self, x, derivative=0,expand=False):
@@ -312,14 +315,18 @@ class Trap():
 		potential, array, shape (n, 3, ..., 3)
 			Pseudopotential derivative. Fully expanded since this is not generally harmonic
 		'''
-
+		q = self.config['charge']
+		m = self.config['mass']
+		l = self.config['scale']
+		o = self.config['Omega']
+		rf_scale = np.sqrt(q/m)/(2*l*o)
 		p = [self.rf_potential(x, derivative=i, expand=True) for i in range(1, derivative+2)] # pseudopotential is proportional to field (derivative = 1) squared
 		if derivative == 0:
-			return np.einsum("ij,ij->i",p[0],p[0])
+			return rf_scale**2*np.einsum("ij,ij->i",p[0],p[0])
 		elif derivative == 1:
-			return 2*np.einsum("ij,ijk->ik",p[0],p[1])
+			return rf_scale**2*2*np.einsum("ij,ijk->ik",p[0],p[1])
 		elif derivative == 2:
-			return 2*(np.einsum("ijk,ijl -> ikl",p[1],p[1])+np.einsum("ij,ijkl->ikl",p[0],p[2]))
+			return rf_scale**2*2*(np.einsum("ijk,ijl -> ikl",p[1],p[1])+np.einsum("ij,ijkl->ikl",p[0],p[2]))
 		else:
 			raise ValueError("only know how to generate pseupotentials up to 2nd order")
 		

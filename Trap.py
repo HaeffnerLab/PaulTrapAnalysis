@@ -176,7 +176,7 @@ class Trap():
 			if new_config is not None:
 				old_config = OrderedDict()
 				for key, value in new_config.items():
-					old_config.update(key:self.config[key])
+					old_config.update({key:self.config[key]})
 					self.config[key] = value
 			
 			yield

@@ -3,6 +3,7 @@ from contextlib import contextmanager
 import logging
 import numpy as np
 import pandas as pd
+from collections import OrderedDict
 from scipy import optimize, constants as ct
 from .Electrode import SimulatedElectrode
 from .utils import expand_tensor
@@ -17,119 +18,171 @@ except ImportError:
 
 logger = logging.getLogger("Electrode")
 
-class Trap(list):
+class Trap():
 	'''A collection of Electrodes.
 
 
 	Parameters
 	--------
-	electrodes: list of Electrode
-	'''
+	electrodes: ordered dictionary of Electrode, eg. {'DC1': DC1, 'DC2': DC2}
+	mass: mass of the trapped particle
+	charge: charge of the trapped particle
+	scale: length scale of the potential, 1 um from bem
 
-	def __init__(self, electrodes = [],**kwargs):
-		super(Trap, self).__init__(**kwargs)
-		self.extend(electrodes)
+
+	Data structure
+	--------
+	electrodes: ordered dictionary of trap electrodes
+	config: ordered dictionary of trap configuration
+
+	'''
+	
+
+	def __init__(self, electrodes = OrderedDict(), mass = 40*ct.atomic_mass, charge = ct.elementary_charge, scale = 1.e-6,  **kwargs):
+		
+		self.electrodes = electrodes
+		self.config = OrderedDict([('mass', mass),
+                      ('charge', charge),
+                      ('scale', scale)])
 
 	@property
 	def names(self):
 		'''List of names of the electrodes.
-
 		'''
-		return [el.name for el in self]
+		return [el.name for key, el in self.electrodes.items()]
 
 	@names.setter
 	def names(self,names):
-		for ei, ni in zip(self,names):
-			ei.name = ni
+		'''names is in dictionary format, example: names = {'DC1': 'DC1.1', 'DC2': 'DC2.1'}
+		'''
+		for key, el in self.electrodes.items():
+			el.name = names[key]
+		# for ei, ni in zip(self,names):
+		# 	ei.name = ni
 
 	@property
 	def V_dcs(self):
 		'''Array of dc voltages of the electrodes
 		'''
-		return pd.Series({el.name: el.V_dc for el in self})
+		return pd.Series({el.name: el.V_dc for key, el in self.electrodes.items()})
 
 	@V_dcs.setter
 	def V_dcs(self, voltages):
 		'''Voltages is in dictionary format, example: voltages = {'DC1': 1, 'DC2': 0}
 		'''
-		for el in self:
+		for key, el in self.electrodes.items():
 			el.V_dc = voltages[el.name]
 
 	@property
 	def V_rfs(self):
 		'''Array of rf voltages of the electrodes.
 		'''
-		return pd.Series({el.name: el.V_rf for el in self})
+		return pd.Series({el.name: el.V_rf for key, el in self.electrodes.items()})
 
 	@V_rfs.setter
 	def V_rfs(self, voltages):
 		'''Voltages is in dictionary format, example: voltages = {'RF1': 100, 'RF2': -100}
 		'''
-		for el in self:
+		for key, el in self.electrodes.items():
 			el.V_rf = voltages[el.name]
 
-	def __getitem__(self, name_or_index):
-		'''Electrode lookup.
+	# def __getitem__(self, name_or_index):
+	# 	'''Electrode lookup.
 
 
-		Returns
-		------
-		Electrode
-			The electrode given by its name or index.
-			None if not found by name
+	# 	Returns
+	# 	------
+	# 	Electrode
+	# 		The electrode given by its name or index.
+	# 		None if not found by name
 
-		Raises
-		------
-		IndexError
-			If electrode index does not exist
-		'''
+	# 	Raises
+	# 	------
+	# 	IndexError
+	# 		If electrode index does not exist
+	# 	'''
 
-		try:
-			return list.__getitem__(self,name_or_index)
-		except TypeError:
-			for ei in self:
-				if ei.name == name_or_index:
-					return ei
+	# 	try:
+	# 		return list.__getitem__(self,name_or_index)
+	# 	except TypeError:
+	# 		for ei in self:
+	# 			if ei.name == name_or_index:
+	# 				return ei
 
-	Electrode = __getitem__
+	# Electrode = __getitem__
 
-	@contextmanager
-	def with_voltages(self, V_dcs=None, V_rfs=None):
-		'''Returns a contextmanager with temporary voltage setting.
+	# @contextmanager
+	# def with_voltages(self, V_dcs=None, V_rfs=None):
+	# 	'''Returns a contextmanager with temporary voltage setting.
 
-		This is a convenient way to temporarily change the voltages
-		and they are reset to their old values.
+	# 	This is a convenient way to temporarily change the voltages
+	# 	and they are reset to their old values.
 
-		Parameters
-		------
-		V_dcs : array_like
-			dc voltages for all electrodes, or None to keep the same
-		V_rfs : array_like
-			dc voltages for all electrodes, or None to keep the same
+	# 	Parameters
+	# 	------
+	# 	V_dcs : dictionary format
+	# 		dc voltages for specific electrodes, or don't specify to keep the same
+	# 	V_rfs : dictionary format
+	# 		dc voltages for specific electrodes, or don't specify to keep the same
 
-		Returns
-		------
-		contextmanager
+	# 	Returns
+	# 	------
+	# 	contextmanager
 
 
-		Example
-		------
-		>>> t = Trap()
-		>>> with t.with_voltages(V_dcs = 0.5*s.V_dcs, V_rfs = [0,1]):
-				print(t.potential([0,0,1]))
-		'''
+	# 	Example
+	# 	------
+	# 	>>> t = Trap()
+	# 	>>> with t.with_voltages(V_dcs = {'DC1': 1, 'DC2': 0}, V_rfs = {'RF1': 100, 'RF2': -100}):
+	# 			print(t.potential([0,0,1]))
+	# 	'''
 
-		try:
-			if V_dcs is not None:
-				V_dcs, self.V_dcs = self.V_dcs, V_dcs
-			if V_rfs is not None:
-				V_rfs, self.V_rfs = self.V_rfs, V_rfs
-			yield
-		finally:
-			if V_dcs is not None:
-				self.V_dcs = V_dcs
-			if V_rfs is not None:
-				self.V_rfs = V_rfs
+	# 	try:
+	# 		if V_dcs is not None:
+	# 			V_dcs, self.V_dcs = self.V_dcs, V_dcs
+	# 		if V_rfs is not None:
+	# 			V_rfs, self.V_rfs = self.V_rfs, V_rfs
+	# 		yield
+	# 	finally:
+	# 		if V_dcs is not None:
+	# 			self.V_dcs = V_dcs
+	# 		if V_rfs is not None:
+	# 			self.V_rfs = V_rfs
+
+	# @contextmanager
+	# def with_config(self, config):
+	# 	'''Returns a contextmanager with temporary voltage setting.
+
+	# 	This is a convenient way to temporarily change the configs
+	# 	and they are reset to their old values.
+
+	# 	Parameters
+	# 	------
+	# 	config : dictionary format
+	# 		dc voltages for specific electrodes, or don't specify to keep the same
+		
+	# 	Returns
+	# 	------
+	# 	contextmanager
+
+
+	# 	Example
+	# 	------
+	# 	>>> t = Trap()
+	# 	>>> with t.with_config({'scale' = 1.e-3}):
+	# 			print(t.potential([0,0,1]))
+	# 	'''
+	# 	try:
+	# 		if V_dcs is not None:
+	# 			V_dcs, self.V_dcs = self.V_dcs, V_dcs
+	# 		if V_rfs is not None:
+	# 			V_rfs, self.V_rfs = self.V_rfs, V_rfs
+	# 		yield
+	# 	finally:
+	# 		if V_dcs is not None:
+	# 			self.V_dcs = V_dcs
+	# 		if V_rfs is not None:
+	# 			self.V_rfs = V_rfs
 
 
 	def dc_potential(self, x, derivative=0,expand=False):
@@ -164,7 +217,7 @@ class Trap(list):
 
 		x = np.asanyarray(x,dtype=np.double).reshape(-1,3)
 		pot = np.zeros((x.shape[0],2*derivative+1),np.double)
-		for ei in self:
+		for key, ei in self.electrodes.items():
 			vi = getattr(ei, 'V_dc', None)
 			if vi:
 				ei.potential(x,derivative,voltage=vi,output=pot)
@@ -200,7 +253,7 @@ class Trap(list):
 		'''
 		x = np.asanyarray(x,dtype=np.double).reshape(-1,3)
 		pot = np.zeros((x.shape[0],2*derivative+1),np.double)
-		for ei in self:
+		for key, ei in self.electrodes.items():
 			vi = getattr(ei, 'V_rf', None)
 			if vi:
 				ei.potential(x,derivative,voltage=vi,output=pot)
@@ -306,7 +359,7 @@ class Trap(list):
 
 		Returns
 		-------
-		potential_matrix : array, shape (m,n,l)
+		potential_matrix : dictionary, m keys, each value is a shape (n,l) array
 			`m` is the electrode index (index into `self`). `n` is the point index,
 			`l = 2*derivative + 1` is the derivative index
 
@@ -315,9 +368,13 @@ class Trap(list):
 		system.individual_potential
 		'''
 		x = np.asanyarray(x, dtype = np.double).reshape(-1,3)
-		potential_matrix = np.zeros((len(self), x.shape[0], 2*derivative+1),np.double)
-		for i, ei in enumerate(self):
-			ei.potential(x, derivative, voltage=1, output=potential_matrix[i])
+		potential_matrix = OrderedDict()
+		# potential_matrix = np.zeros((len(self), x.shape[0], 2*derivative+1),np.double)
+		# for i, ei in enumerate(self):
+			# ei.potential(x, derivative, voltage=1, output=potential_matrix[i])
+		for key, ei in self.electrodes.items():
+			potential_matrix.update({key: np.zeros((x.shape[0], 2*derivative+1),np.double)})
+			ei.potential(x, derivative, voltage=1, output=potential_matrix[key])
 		return potential_matrix
 
 

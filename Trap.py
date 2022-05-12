@@ -18,7 +18,7 @@ except ImportError:
 
 logger = logging.getLogger("Electrode")
 
-class Trap():
+class Trap:
 	'''A collection of Electrodes.
 
 
@@ -45,6 +45,9 @@ class Trap():
                       ('charge', charge),
                       ('scale', scale),
                       ('Omega', Omega)])
+
+	def update_electrode(self, elec):
+		self.electrodes.update({elec.name: elec})
 
 	@property
 	def names(self):
@@ -174,16 +177,14 @@ class Trap():
 		'''
 		try:
 			if new_config is not None:
-				old_config = OrderedDict()
+				old_config = self.config.copy()
 				for key, value in new_config.items():
-					old_config.update({key:self.config[key]})
 					self.config[key] = value
 			
 			yield
 		finally:
 			if new_config is not None:
-				for key, value in old_config.items():
-					self.config[key] = value
+				self.config = old_config
 
 			
 

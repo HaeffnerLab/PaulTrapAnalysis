@@ -46,8 +46,11 @@ class Trap:
                       ('scale', scale),
                       ('Omega', Omega)])
 
-	def update_electrode(self, elec):
-		self.electrodes.update({elec.name: elec})
+	def update_electrodes(self, elecs):
+		if type(elecs) is not list:
+			elecs = [elecs]
+		for elec in elecs:
+			self.electrodes.update({elec.name: elec})
 
 	@property
 	def names(self):

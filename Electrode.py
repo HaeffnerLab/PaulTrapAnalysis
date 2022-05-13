@@ -2,6 +2,7 @@
 import numpy as np
 from scipy.ndimage.interpolation import map_coordinates
 from .utils import construct_derivative
+import xarray as xr
 
 
 class Electrode:
@@ -102,12 +103,11 @@ class SimulatedElectrode(Electrode):
 '''
 	__slots__ = "data origin step".split()
 
-	def __init__(self, data = [], origin = (0,0,0), step=(1, 1, 1),**kwargs):
+	def __init__(self, data = [xr.DataArray()], **kwargs):
 		super(SimulatedElectrode, self).__init__(**kwargs)
-		self.data = [np.asanyarray(i, np.double) for i in data]
-		self.origin = np.asanyarray(origin, np.double)
-		self.step = np.asanyarray(step,np.double)
-
+		self.data = data
+		self.step = data[0].attrs['step']
+		self.origin = data[0].attrs['origin']
 
 	@classmethod
 	def from_bem():
@@ -148,6 +148,9 @@ class SimulatedElectrode(Electrode):
 		sgr = tvtk.StructuredPointsReader(file_name=file)
 		sgr.update()
 		sg = sgr.output
+		x = np.linspace(sg.origin[0], sg.origin[0] + sg.spacing[0] * (sg.dimensions[0] - 1), sg.dimensions[0])
+		y = np.linspace(sg.origin[1], sg.origin[1] + sg.spacing[1] * (sg.dimensions[1] - 1), sg.dimensions[1])
+		z = np.linspace(sg.origin[2], sg.origin[2] + sg.spacing[2] * (sg.dimensions[2] - 1), sg.dimensions[2])
 		pot = [None, None]
 		for i in range(sg.point_data.number_of_arrays):
 			name = sg.point_data.get_array_name(i)
@@ -157,13 +160,17 @@ class SimulatedElectrode(Electrode):
 				continue
 			sp = sg.point_data.get_array(i)
 			data = sp.to_array()
-			step = sg.spacing
-			origin = sg.origin
 			dimensions = tuple(sg.dimensions)
 			dim = sp.number_of_components
 			data = data.reshape(dimensions[::-1]+(dim,)).transpose(2, 1, 0, 3)
-			pot[int((dim-1)/2)] = data
-		obj = cls(name=elec_name, origin=origin, step=step, data=pot)
+			pot[int((dim-1)/2)] = xr.DataArray(data, 
+												dims = ('x', 'y', 'z', 'd'), 
+												coords = {'x': x, 'y': y, 'z': z},
+												attrs = dict(derivative_order = int((dim-1)/2),
+															step = sg.spacing,
+															origin = sg.origin)
+												)
+		obj = cls(name=elec_name, data=pot)
 		obj.generate(maxderiv)
 		return obj
 
@@ -204,16 +211,21 @@ class SimulatedElectrode(Electrode):
 			# TODO triple work
 			grad = np.gradient(odata[..., j], *self.step)[k]
 			ddata[..., i] = grad
-		return ddata
+		output = xr.DataArray(ddata, 
+								dims = ('x', 'y', 'z', 'd'), 
+								coords = {'x': odata.x, 'y': odata.y, 'z': odata.z},
+								attrs = dict(derivative_order = int(deriv),
+											step = odata.attrs['step'],
+											origin = odata.attrs['origin'])
+							)
+		return output
 
-	def potential(self, x, derivative =0, voltage=1.,output=None):
-		x_index = (x - self.origin[None, :])/self.step[None, :]
-		if output is None:
-			output = np.zeros((x_index.shape[0], 2*derivative+1), np.double)
+	def potential(self, x, y, z, method = 'nearest', tolerance = 1e-10, derivative =0, voltage=1.,output=None):
 		dat = self.data[derivative]
-		for i in range(2*derivative+1):
-			output[:, i] += voltage*map_coordinates(dat[..., i], x_index.T,
-				order=1, mode="nearest")
+		if output is None:
+			output = voltage * dat.sel(x = x, y = y, z = z, method = 'nearest', tolerance = tolerance)
+		else:
+			output += voltage * dat.sel(x = x, y = y, z = z, method = 'nearest', tolerance = tolerance)
 		return output
 
 	

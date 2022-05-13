@@ -220,7 +220,7 @@ class SimulatedElectrode(Electrode):
 							)
 		return output
 
-	def potential(self, x, y, z, method = 'nearest', tolerance = 1e-10, derivative =0, voltage=1.,output=None):
+	def potential(self, x, y, z, tolerance = 1e-10, derivative =0, voltage=1.,output=None):
 		dat = self.data[derivative]
 		if output is None:
 			output = voltage * dat.sel(x = x, y = y, z = z, method = 'nearest', tolerance = tolerance)

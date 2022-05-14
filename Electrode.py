@@ -153,7 +153,7 @@ class SimulatedElectrode(Electrode):
 		y = np.around(y, decimals = decimals)
 		z = np.linspace(sg.origin[2], sg.origin[2] + sg.spacing[2] * (sg.dimensions[2] - 1), sg.dimensions[2])
 		z = np.around(z, decimals = decimals)
-		pot = [None, None]
+		pot = [None] * sg.point_data.number_of_arrays
 		for i in range(sg.point_data.number_of_arrays):
 			name = sg.point_data.get_array_name(i)
 			if "_pondpot" in name:

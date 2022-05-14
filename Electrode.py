@@ -122,7 +122,7 @@ class SimulatedElectrode(Electrode):
 		'''
 	@classmethod
 	def from_ansys():
-		'''Load grid potential data from fld file (exported from ansys) and create a 'GridLayout' object
+		'''Load grid potential data from fld file (exported from ansys) and create a 'SimulatedElectrode' object
 		fld file: potential data file exported from ansys without grid points
 
 		Parameters
@@ -135,7 +135,7 @@ class SimulatedElectrode(Electrode):
 
 	@classmethod
 	def from_vtk(cls, elec_name, file, maxderiv=4):
-		'''Load grid potential data from vtk StructurePoints and create a 'GridLayout' object
+		'''Load grid potential data from vtk StructurePoints and create a 'SimulatedElectrode' object
 
 		Parameters
 		-------
@@ -201,7 +201,7 @@ class SimulatedElectrode(Electrode):
 		deriv : derivative order to generate
 		Returns
 		-------
-		data : array, shape (n, m, k, l)
+		data : xarray, shape (n, m, k, l)
 			New derivative data, l = 2*deriv + 1
 		"""
 		odata = self.data[deriv-1]
@@ -220,12 +220,18 @@ class SimulatedElectrode(Electrode):
 							)
 		return output
 
-	def potential(self, x, y, z, tolerance = 1e-10, derivative =0, voltage=1.,output=None):
+	def potential(self, x = None, y = None, z = None, tolerance = 1e-10, derivative =0, voltage=1.,output=None):
 		dat = self.data[derivative]
+		if x is not None:
+			dat = dat.sel(x = x, method = 'nearest', tolerance = tolerance)
+		if y is not None:
+			dat = dat.sel(y = y, method = 'nearest', tolerance = tolerance)
+		if z is not None:
+			dat = dat.sel(z = z, method = 'nearest', tolerance = tolerance)
 		if output is None:
-			output = voltage * dat.sel(x = x, y = y, z = z, method = 'nearest', tolerance = tolerance)
+			output = voltage * dat
 		else:
-			output += voltage * dat.sel(x = x, y = y, z = z, method = 'nearest', tolerance = tolerance)
+			output += voltage * dat
 		return output
 
 	

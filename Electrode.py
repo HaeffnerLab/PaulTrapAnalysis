@@ -1,7 +1,7 @@
 
 import numpy as np
 from scipy.ndimage.interpolation import map_coordinates
-from .utils import construct_derivative
+from .utils import construct_derivative, _derivative_names
 import xarray as xr
 
 
@@ -107,7 +107,6 @@ class SimulatedElectrode(Electrode):
 		super(SimulatedElectrode, self).__init__(**kwargs)
 		self.data = data
 		self.step = data[0].attrs['step']
-		self.origin = data[0].attrs['origin']
 
 	@classmethod
 	def from_bem():
@@ -164,8 +163,8 @@ class SimulatedElectrode(Electrode):
 			dim = sp.number_of_components
 			data = data.reshape(dimensions[::-1]+(dim,)).transpose(2, 1, 0, 3)
 			pot[int((dim-1)/2)] = xr.DataArray(data, 
-												dims = ('x', 'y', 'z', 'd'), 
-												coords = {'x': x, 'y': y, 'z': z},
+												dims = ('x', 'y', 'z', 'derivative'), 
+												coords = {'x': x, 'y': y, 'z': z, 'derivative': _derivative_names[int((dim-1)/2)]},
 												attrs = dict(derivative_order = int((dim-1)/2),
 															step = sg.spacing,
 															origin = sg.origin)
@@ -212,15 +211,15 @@ class SimulatedElectrode(Electrode):
 			grad = np.gradient(odata[..., j], *self.step)[k]
 			ddata[..., i] = grad
 		output = xr.DataArray(ddata, 
-								dims = ('x', 'y', 'z', 'd'), 
-								coords = {'x': odata.x, 'y': odata.y, 'z': odata.z},
+								dims = ('x', 'y', 'z', 'derivative'), 
+								coords = {'x': odata.x, 'y': odata.y, 'z': odata.z, 'derivative': _derivative_names[deriv]},
 								attrs = dict(derivative_order = int(deriv),
 											step = odata.attrs['step'],
 											origin = odata.attrs['origin'])
 							)
 		return output
 
-	def potential(self, x = None, y = None, z = None, tolerance = 1e-10, derivative =0, voltage=1.,output=None):
+	def potential(self, x = None, y = None, z = None, tolerance = 1e-10, derivative =0, voltage=1., output=None):
 		dat = self.data[derivative]
 		if x is not None:
 			dat = dat.sel(x = x, method = 'nearest', tolerance = tolerance)

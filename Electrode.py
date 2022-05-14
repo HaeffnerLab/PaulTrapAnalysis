@@ -133,10 +133,15 @@ class SimulatedElectrode(Electrode):
 		'''
 
 	@classmethod
-	def from_vtk(cls, elec_name, file, maxderiv=4, decimals = 10):
+	def from_vtk(cls, elec_name, file, maxderiv=4, scale = 1, decimals = 10):
 		'''Load grid potential data from vtk StructurePoints and create a 'SimulatedElectrode' object
 
 		Parameters
+		elec_name: file name string
+		maxderiv: max derivative order to generate
+		scale: the ratio between the new unit to the old unit, 
+				used to rescale the field and higher order derivative
+		decimals: the coordinates accuracy will be truncated to the designated decimal
 		-------
 
 		Returns
@@ -147,13 +152,13 @@ class SimulatedElectrode(Electrode):
 		sgr = tvtk.StructuredPointsReader(file_name=file)
 		sgr.update()
 		sg = sgr.output
-		x = np.linspace(sg.origin[0], sg.origin[0] + sg.spacing[0] * (sg.dimensions[0] - 1), sg.dimensions[0])
+		x = np.linspace(sg.origin[0], sg.origin[0] + sg.spacing[0] * (sg.dimensions[0] - 1), sg.dimensions[0]) / scale
 		x = np.around(x, decimals = decimals)
-		y = np.linspace(sg.origin[1], sg.origin[1] + sg.spacing[1] * (sg.dimensions[1] - 1), sg.dimensions[1])
+		y = np.linspace(sg.origin[1], sg.origin[1] + sg.spacing[1] * (sg.dimensions[1] - 1), sg.dimensions[1]) / scale
 		y = np.around(y, decimals = decimals)
-		z = np.linspace(sg.origin[2], sg.origin[2] + sg.spacing[2] * (sg.dimensions[2] - 1), sg.dimensions[2])
+		z = np.linspace(sg.origin[2], sg.origin[2] + sg.spacing[2] * (sg.dimensions[2] - 1), sg.dimensions[2]) / scale
 		z = np.around(z, decimals = decimals)
-		pot = [None] * sg.point_data.number_of_arrays
+		pot = [None] * maxderiv
 		for i in range(sg.point_data.number_of_arrays):
 			name = sg.point_data.get_array_name(i)
 			if "_pondpot" in name:
@@ -165,12 +170,13 @@ class SimulatedElectrode(Electrode):
 			dimensions = tuple(sg.dimensions)
 			dim = sp.number_of_components
 			data = data.reshape(dimensions[::-1]+(dim,)).transpose(2, 1, 0, 3)
-			pot[int((dim-1)/2)] = xr.DataArray(data, 
+			order = int((dim-1)/2)
+			pot[order] = xr.DataArray(data * scale**order, 
 												dims = ('x', 'y', 'z', 'l'), 
-												coords = {'x': x, 'y': y, 'z': z, 'l': _derivative_names[int((dim-1)/2)]},
-												attrs = dict(derivative_order = int((dim-1)/2),
-															step = sg.spacing,
-															origin = sg.origin)
+												coords = {'x': x, 'y': y, 'z': z, 'l': _derivative_names[order]},
+												attrs = dict(derivative_order = order,
+															step = sg.spacing / scale,
+															origin = sg.origin / scale)
 												)
 		obj = cls(name=elec_name, data=pot)
 		obj.generate(maxderiv)
@@ -188,8 +194,8 @@ class SimulatedElectrode(Electrode):
 			present.
 		"""
 		for deriv in range(maxderiv):
-			if len(self.data) < deriv+1:
-				self.data.append(self.derive(deriv))
+			if self.data[deriv] is None:
+				self.data[deriv] = self.derive(deriv)
 			ddata = self.data[deriv]
 			assert ddata.ndim == 4, ddata.ndim
 			assert ddata.shape[-1] == 2*deriv+1, ddata.shape

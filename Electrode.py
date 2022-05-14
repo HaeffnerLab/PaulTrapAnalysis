@@ -133,7 +133,7 @@ class SimulatedElectrode(Electrode):
 		'''
 
 	@classmethod
-	def from_vtk(cls, elec_name, file, maxderiv=4):
+	def from_vtk(cls, elec_name, file, maxderiv=4, decimals = 10):
 		'''Load grid potential data from vtk StructurePoints and create a 'SimulatedElectrode' object
 
 		Parameters
@@ -148,8 +148,11 @@ class SimulatedElectrode(Electrode):
 		sgr.update()
 		sg = sgr.output
 		x = np.linspace(sg.origin[0], sg.origin[0] + sg.spacing[0] * (sg.dimensions[0] - 1), sg.dimensions[0])
+		x = np.around(x, decimals = decimals)
 		y = np.linspace(sg.origin[1], sg.origin[1] + sg.spacing[1] * (sg.dimensions[1] - 1), sg.dimensions[1])
+		y = np.around(y, decimals = decimals)
 		z = np.linspace(sg.origin[2], sg.origin[2] + sg.spacing[2] * (sg.dimensions[2] - 1), sg.dimensions[2])
+		z = np.around(z, decimals = decimals)
 		pot = [None, None]
 		for i in range(sg.point_data.number_of_arrays):
 			name = sg.point_data.get_array_name(i)
@@ -219,14 +222,14 @@ class SimulatedElectrode(Electrode):
 							)
 		return output
 
-	def potential(self, x = None, y = None, z = None, derivative =0, voltage=1., tolerance = 1e-10):
+	def potential(self, x = None, y = None, z = None, derivative =0, voltage=1., method = None):
 		dat = self.data[derivative]
 		if x is not None:
-			dat = dat.sel(x = x, method = 'nearest', tolerance = tolerance)
+			dat = dat.sel(x = x, method = method)
 		if y is not None:
-			dat = dat.sel(y = y, method = 'nearest', tolerance = tolerance)
+			dat = dat.sel(y = y, method = method)
 		if z is not None:
-			dat = dat.sel(z = z, method = 'nearest', tolerance = tolerance)
+			dat = dat.sel(z = z, method = method)
 		output = voltage * dat
 		return output
 

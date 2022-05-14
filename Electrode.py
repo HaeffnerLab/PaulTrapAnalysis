@@ -219,14 +219,10 @@ class SimulatedElectrode(Electrode):
 							)
 		return output
 
-	def potential(self, x = None, y = None, z = None, tolerance = 1e-10, derivative =0, voltage=1., output=None):
+	def potential(self, coords = None, tolerance = 1e-10, derivative =0, voltage=1., output=None):
 		dat = self.data[derivative]
-		if x is not None:
-			dat = dat.sel(x = x, method = 'nearest', tolerance = tolerance)
-		if y is not None:
-			dat = dat.sel(y = y, method = 'nearest', tolerance = tolerance)
-		if z is not None:
-			dat = dat.sel(z = z, method = 'nearest', tolerance = tolerance)
+		if coords is not None:
+			dat = dat.sel(x = coords[0], y = coords[1], z = coords[2], method = 'nearest', tolerance = tolerance)
 		if output is None:
 			output = voltage * dat
 		else:

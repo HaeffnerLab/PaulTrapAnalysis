@@ -3,6 +3,7 @@ from contextlib import contextmanager
 import logging
 import numpy as np
 import pandas as pd
+import xarray as xr
 from collections import OrderedDict
 from scipy import optimize, constants as ct
 from .Electrode import SimulatedElectrode
@@ -192,12 +193,12 @@ class Trap:
 			
 
 
-	def dc_potential(self, x, derivative=0,expand=False):
+	def dc_potential(self, x = None, y = None, z = None, derivative=0, expand=False):
 		'''Electrical potential derivative from the DC voltages contribution.
 
 		Parameters
 		-------
-		x: array_like, shape (n,3)
+		x, y, z: array_like, shape (n,1) for each
 			Positions to evaluate the potential at.
 		derivative: int
 			Derivative order
@@ -206,8 +207,8 @@ class Trap:
 
 		Returns
 		------
-		potential: array
-			Potential at 'x'
+		potential: xarray
+			Potential at (x, y, z)
 			If expand == False, shape (n, l) and l = 2*derivative+1 is the derivative index
 			Else, shape (n, 3, ..., 3) and returns the fully expanded tensorial form
 
@@ -222,23 +223,23 @@ class Trap:
 		Haven't implement the higher order derivative method yet
 		'''
 
-		x = np.asanyarray(x,dtype=np.double).reshape(-1,3)
-		pot = np.zeros((x.shape[0],2*derivative+1),np.double)
+		pot = []
 		for key, ei in self.electrodes.items():
 			vi = getattr(ei, 'V_dc', None)
 			if vi:
-				ei.potential(x,derivative,voltage=vi,output=pot)
-			if expand:
-				pot = expand_tensor(pot)
-				pass
+				pot.append(ei.potential(x, y, z, derivative,voltage=vi))
+		pot = sum(pot)
+		if expand:
+			pot = expand_tensor(pot) # when derivative >= 2, return numpy.array instead of xarray.DataArray
+			pass
 		return pot
 
-	def rf_potential(self, x, derivative=0,expand=False):
+	def rf_potential(self, x = None, y = None, z = None, derivative=0, expand=False):
 		'''Electrical potential derivative from the RF voltages contribution.
 
 		Parameters
 		-------
-		x: array_like, shape (n,3)
+		x, y, z: array_like, shape (n,1) for each
 			Positions to evaluate the potential at.
 		derivative: int
 			Derivative order
@@ -258,25 +259,27 @@ class Trap:
 		-----
 		Haven't implement the higher order derivative method yet
 		'''
-		x = np.asanyarray(x,dtype=np.double).reshape(-1,3)
-		pot = np.zeros((x.shape[0],2*derivative+1),np.double)
+		pot = []
 		for key, ei in self.electrodes.items():
 			vi = getattr(ei, 'V_rf', None)
 			if vi:
-				ei.potential(x,derivative,voltage=vi,output=pot)
-			if expand:
-				pot = expand_tensor(pot)
-				pass
+				pot.append(ei.potential(x, y, z, derivative,voltage=vi))
+		pot = sum(pot)
+		if expand:
+			pot = expand_tensor(pot)
+			pass
 		return pot
 
 
-	def time_dependent_potential(self, x, derivative=0, t=0., omega=2*np.pi*40.E6,expand=False):
+	def time_dependent_potential(self, x = None, y = None, z = None, derivative=0, t=0., omega=2*np.pi*40.E6,expand=False):
 		'''Electric potential at an instant. No pseudopotential averaging.
 
 			V_dc + cos(omega*t)*V_rf
 
 			Parameters
 			-------
+			x, y, z: array_like, shape (n,1) for each
+				Positions to evaluate the potential at.
 			derivative: int
 				Derivative order
 			t: float
@@ -299,18 +302,18 @@ class Trap:
 			Haven't implement the higher order derivative method yet
 			Include the frequency of the rf potential as well
 		'''
-		dc = self.dc_potential(x, derivative, expand)
-		rf = self.rf_potential(x, derivative, expand)
+		dc = self.dc_potential(x, y, z, derivative, expand)
+		rf = self.rf_potential(x, y, z, derivative, expand)
 		return dc + np.cos(omega*t)*rf
 
 
-	def pseudo_potential(self, x, derivative = 0):
+	def pseudo_potential(self, x = None, y = None, z = None, derivative = 0):
 		'''The pseudopotential/ ponderomotive potential
 
 		Parameters
 		-------
-		x : array_like, shape (n,3)
-			Points to evaluate the pseudopotential at
+		x, y, z: array_like, shape (n,1) for each
+			Positions to evaluate the potential at.
 		derivative: int <= 2
 			Derivative order. Currently only implemented up to 2nd order
 
@@ -324,26 +327,28 @@ class Trap:
 		l = self.config['scale']
 		o = self.config['Omega']
 		rf_scale = np.sqrt(q/m)/(2*l*o)
-		p = [self.rf_potential(x, derivative=i, expand=True) for i in range(1, derivative+2)] # pseudopotential is proportional to field (derivative = 1) squared
+		p = [self.rf_potential(x, y, z, derivative=i, expand=True) for i in range(1, derivative+2)] # pseudopotential is proportional to field (derivative = 1) squared
 		if derivative == 0:
-			return rf_scale**2*np.einsum("ij,ij->i",p[0],p[0])
+			return rf_scale**2 * xr.dot(p[0], p[0], dims = 'l')
+
+		# below return numpy array
 		elif derivative == 1:
-			return rf_scale**2*2*np.einsum("ij,ijk->ik",p[0],p[1])
+			return rf_scale**2 * 2 * np.einsum("ijkl, ijklm->ijkm",p[0],p[1])
 		elif derivative == 2:
-			return rf_scale**2*2*(np.einsum("ijk,ijl -> ikl",p[1],p[1])+np.einsum("ij,ijkl->ikl",p[0],p[2]))
+			return rf_scale**2 * 2 * (np.einsum("ijklm,ijkln -> ijkmn",p[1],p[1]) + np.einsum("ijkl,ijklmn->ijkmn",p[0],p[2]))
 		else:
 			raise ValueError("only know how to generate pseupotentials up to 2nd order")
 		
 
 		return
 
-	def total_potential(self, x, derivative=0):
+	def total_potential(self, x = None, y = None, z = None, derivative=0):
 		'''Combined electrical and pseudo potential.
 
 		Parameters
 		------
-		x: array, shape (n,3)
-			Points to evaluate at.
+		x, y, z: array_like, shape (n,1) for each
+			Positions to evaluate the potential at.
 		derivative : 
 			Order of derivative
 
@@ -352,19 +357,19 @@ class Trap:
 		potential: array
 
 		'''
-		dc = self.dc_potential(x,derivative,expand=True)
-		rf = self.pseudo_potential(x, derivative)
+		dc = self.dc_potential(x, y, z, derivative, expand=True)
+		rf = self.pseudo_potential(x, y, z, derivative)
 		return dc + rf
 
-	def individual_potential_contribution(self, x, derivative=0):
+	def individual_potential_contribution(self, x = None, y = None, z = None, derivative=0):
 		'''Individual contributions to the electrical potential from all the electrodes.
 		Returns an array of the contributions by each electrode in the trap to the potential at points x
 		Each electrode is taken to have unit voltage while grounding all other electrodes
 
 		Parameters
 		-------
-		x : array_like, shape (n,3)
-			Points to evaluate the potential at
+		x, y, z: array_like, shape (n,1) for each
+			Positions to evaluate the potential at.
 		derivative: int
 			Derivative order
 
@@ -378,14 +383,9 @@ class Trap:
 		-------
 		system.individual_potential
 		'''
-		x = np.asanyarray(x, dtype = np.double).reshape(-1,3)
 		potential_matrix = OrderedDict()
-		# potential_matrix = np.zeros((len(self), x.shape[0], 2*derivative+1),np.double)
-		# for i, ei in enumerate(self):
-			# ei.potential(x, derivative, voltage=1, output=potential_matrix[i])
 		for key, ei in self.electrodes.items():
-			potential_matrix.update({key: np.zeros((x.shape[0], 2*derivative+1),np.double)})
-			ei.potential(x, derivative, voltage=1, output=potential_matrix[key])
+			potential_matrix.update({key: ei.potential(x, y, z, derivative)})
 		return potential_matrix
 
 

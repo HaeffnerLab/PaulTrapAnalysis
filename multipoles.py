@@ -75,11 +75,11 @@ class MultipoleControl:
         self.origin = np.array(origin)
         self.roi = roi
 
-        x_roi = slice(self.origin[0] - self.roi[0], self.origin[0] + self.roi[0])
-        y_roi = slice(self.origin[1] - self.roi[1], self.origin[1] + self.roi[1])
-        z_roi = slice(self.origin[2] - self.roi[2], self.origin[2] + self.roi[2])
+        x_slice = slice(self.origin[0] - self.roi[0], self.origin[0] + self.roi[0])
+        y_slice = slice(self.origin[1] - self.roi[1], self.origin[1] + self.roi[1])
+        z_slice = slice(self.origin[2] - self.roi[2], self.origin[2] + self.roi[2])
 
-        self.electrode_potential_roi = self.trap.individual_potential_contribution(x = x_roi, y = y_roi, z = z_roi)
+        self.electrode_potential_roi = self.trap.individual_potential_contribution(x = x_slice, y = y_slice, z = z_slice)
 
         self.update_expansion_order(self.order)
         return
@@ -135,7 +135,8 @@ class MultipoleControl:
             multipoles[ele] = pd.Series(Mj[0:N].T[0], index = multipoles_index_names)
 
             Vregen = spher_harm_cmp(Mj,Yj,scale,order)
-            potential_regenerated[ele] = Vregen.reshape([len(X_roi), len(Y_roi), len(Z_roi)])
+            potential_regenerated[ele] = xr.zeros_like(potential_roi[ele])
+            potential_regenerated[ele].loc[:] = Vregen.reshape([len(X_roi), len(Y_roi), len(Z_roi), 1])
         return multipoles, potential_regenerated
 
     def setVoltages(self, voltages):
@@ -177,22 +178,22 @@ class MultipoleControl:
         This function takes voltages and returns the potential you get over the roi.
         i.e. vs = {'DC1':1, 'DC2':2}
         '''
-        output_roi = np.zeros((len(self.X_roi), len(self.Y_roi), len(self.Z_roi)))
+        output_roi = []
         for key in vs.keys():
-            output_roi += self.electrode_potential_roi[key] * vs[key]
+            output_roi.append(self.electrode_potential_roi[key] * vs[key])
 
-        return output_roi
+        return sum(output_roi)
 
     def potentialControl_regen(self, vs):
         '''
         This function takes voltages and returns the potential regenerated from multipole coefficients over the roi.
         i.e. vs = {'DC1':1, 'DC2':2}
         '''
-        output_roi = np.zeros((len(self.X_roi), len(self.Y_roi), len(self.Z_roi)))
+        output_roi = []
         for key in vs.keys():
-            output_roi += self.electrode_potential_regenerated[key] * vs[key]
+            output_roi.append(self.electrode_potential_regenerated[key] * vs[key])
 
-        return output_roi
+        return sum(output_roi)
 
     @staticmethod
     def min_linf(y, X):

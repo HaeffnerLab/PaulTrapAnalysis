@@ -271,7 +271,7 @@ class Trap:
 		return pot
 
 
-	def time_dependent_potential(self, x = None, y = None, z = None, derivative=0, t=0., omega=2*np.pi*40.E6,expand=False):
+	def time_dependent_potential(self, x = None, y = None, z = None, derivative=0, t=0., expand=False):
 		'''Electric potential at an instant. No pseudopotential averaging.
 
 			V_dc + cos(omega*t)*V_rf
@@ -302,6 +302,7 @@ class Trap:
 			Haven't implement the higher order derivative method yet
 			Include the frequency of the rf potential as well
 		'''
+		omega = self.config['Omega']
 		dc = self.dc_potential(x, y, z, derivative, expand)
 		rf = self.rf_potential(x, y, z, derivative, expand)
 		return dc + np.cos(omega*t)*rf

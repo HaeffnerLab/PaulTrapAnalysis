@@ -3,6 +3,7 @@ import numpy as np
 from scipy.ndimage.interpolation import map_coordinates
 from .utils import construct_derivative, _derivative_names
 import xarray as xr
+import pyvista as pv
 
 
 class Electrode:
@@ -139,7 +140,7 @@ class SimulatedElectrode(Electrode):
 		Parameters
 		elec_name: file name string
 		maxderiv: max derivative order to generate
-		scale: the ratio between the new unit to the old unit, 
+		scale: the ratio between the new unit to the old unit, (scale = new / old, e.g. scale = 1mm/100µm = 10) 
 				used to rescale the field and higher order derivative
 		decimals: the coordinates accuracy will be truncated to the designated decimal
 		-------
@@ -148,35 +149,33 @@ class SimulatedElectrode(Electrode):
 		-----
 		GridLayout
 		'''
-		from tvtk.api import tvtk
-		sgr = tvtk.StructuredPointsReader(file_name=file)
-		sgr.update()
-		sg = sgr.output
-		x = np.linspace(sg.origin[0], sg.origin[0] + sg.spacing[0] * (sg.dimensions[0] - 1), sg.dimensions[0]) / scale
+		ug = pv.UniformGrid(file)
+		x = np.linspace(ug.origin[0], ug.origin[0] + ug.spacing[0] * (ug.dimensions[0] - 1), ug.dimensions[0]) / scale
 		x = np.around(x, decimals = decimals)
-		y = np.linspace(sg.origin[1], sg.origin[1] + sg.spacing[1] * (sg.dimensions[1] - 1), sg.dimensions[1]) / scale
+		y = np.linspace(ug.origin[1], ug.origin[1] + ug.spacing[1] * (ug.dimensions[1] - 1), ug.dimensions[1]) / scale
 		y = np.around(y, decimals = decimals)
-		z = np.linspace(sg.origin[2], sg.origin[2] + sg.spacing[2] * (sg.dimensions[2] - 1), sg.dimensions[2]) / scale
+		z = np.linspace(ug.origin[2], ug.origin[2] + ug.spacing[2] * (ug.dimensions[2] - 1), ug.dimensions[2]) / scale
 		z = np.around(z, decimals = decimals)
 		pot = [None] * maxderiv
-		for i in range(sg.point_data.number_of_arrays):
-			name = sg.point_data.get_array_name(i)
-			if "_pondpot" in name:
-				continue # not harmonic, do not use it
-			elif name not in ("potential", "field"):
+		for name in ug.array_names:
+			if name not in ("potential", "field"):
 				continue
-			sp = sg.point_data.get_array(i)
-			data = sp.to_array()
-			dimensions = tuple(sg.dimensions)
-			dim = sp.number_of_components
-			data = data.reshape(dimensions[::-1]+(dim,)).transpose(2, 1, 0, 3)
-			order = int((dim-1)/2)
+			data = ug.point_data[name]
+			shape = ug.dimensions
+			dim = shape[::-1]
+			if data.ndim > 1:
+				m_dim = data.shape[-1]
+			elif data.ndim == 1:
+				m_dim = 1
+			dim += (m_dim,)
+			data = np.asarray(data.reshape(dim).transpose(2, 1, 0, 3))
+			order = int((m_dim-1)/2)
 			pot[order] = xr.DataArray(data * scale**order, 
 												dims = ('x', 'y', 'z', 'l'), 
 												coords = {'x': x, 'y': y, 'z': z, 'l': _derivative_names[order]},
 												attrs = dict(derivative_order = order,
-															step = sg.spacing / scale,
-															origin = sg.origin / scale)
+															step = np.asarray(ug.spacing) / scale,
+															origin = np.asarray(ug.origin) / scale)
 												)
 		obj = cls(name=elec_name, data=pot)
 		obj.generate(maxderiv)

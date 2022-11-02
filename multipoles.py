@@ -167,9 +167,11 @@ class MultipoleControl:
         This function takes voltages and returns the potential you get over the full space.
         input i.e. vs = {'DC1':1, 'DC2':2}
         '''
-        output = np.zeros((len(self.X), len(self.Y), len(self.Z)))
-        for key in vs.keys():
-            output += self.electrode_potential[key] * vs[key]
+        for i, key in enumerate(vs.keys()):
+            if i == 0:
+                output = self.electrode_potential[key] * vs[key]
+            else:
+                output += self.electrode_potential[key] * vs[key]
 
         return output
 

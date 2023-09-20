@@ -17,6 +17,11 @@ _select_map = [] # derivative order: 2*order+1 list of indices into
 _derive_map = {} # (derivative order, derivative index): ((lower
 # derivative order, lower derivative index), axis to derive)
 
+def demesh(seq):
+		seen = set()
+		seen_add = seen.add
+		return [x for x in seq if not (x in seen or seen_add(x))]
+
 def name_to_idx(name):
     """Return a tuple of axis indices for given derivative
     

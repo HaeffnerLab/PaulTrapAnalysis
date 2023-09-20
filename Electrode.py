@@ -1,9 +1,10 @@
 
 import numpy as np
 from scipy.ndimage.interpolation import map_coordinates
-from .utils import construct_derivative, _derivative_names
+from .utils import construct_derivative, _derivative_names,demesh
 import xarray as xr
 import pyvista as pv
+import pandas as pd
 
 
 class Electrode:
@@ -121,17 +122,81 @@ class SimulatedElectrode(Electrode):
 		SimulatedElectrode
 		'''
 	@classmethod
-	def from_ansys():
+	def from_fld(cls, elec_name, file, stepSize, min_grid, max_grid, mirror = False, maxderiv=4, scale = 1, decimals = 10, skiprows=2,sep=' ',names=['potential'],perm=[2,0,1]):
 		'''Load grid potential data from fld file (exported from ansys) and create a 'SimulatedElectrode' object
 		fld file: potential data file exported from ansys without grid points
 
 		Parameters
 		-------
+		stepSize = [0.005,0.005,0.005] #step size in mm
+		min_grid = [-0.25,-0.25,-0.25] #x,y,z_min of the grid, in mm
+		max_grid = [0.25,0.25,0.25] #x,y,z_max of the grid, in mm
+		mirror: boolean, mirror around x axis for three layer trap br from bl
 
 		Returns
 		-----
 		GridLayout
 		'''
+		# x,y,z demesh, numpy function
+		
+		ug = pd.read_csv(file, skiprows=skiprows, sep=sep,names=names)
+		nXYZ = [int((max_grid[i]-min_grid[i])/stepSize[i]+1) for i in range(3)]
+		roi = np.array([np.array([0,nXYZ[i]-1])*stepSize[i]+min_grid[i] for i in range(3)])
+		gridXYZ = [np.linspace(roi[l,0],roi[l,1],nXYZ[l]) for l in range(3)]
+		x = gridXYZ[0]
+		y = gridXYZ[1]
+		z = gridXYZ[2]
+		#label voltage data: in Ansys coordinate, change z first, then y, at last change x
+		Z = np.tile(z,len(x)*len(y))
+		Y = np.tile(y,(len(z),len(x)))
+		Y = np.ndarray.flatten(Y.T)
+		X = np.tile(x,(len(z)*len(y),1))
+		X = np.ndarray.flatten(X.T)
+		if mirror:
+			X = - X
+		axis = [X,Y,Z]
+		#rename the coordinates
+		Xi = axis[perm[0]]
+		Yi = axis[perm[1]]
+		Zi = axis[perm[2]]
+		ug['y'] = Yi
+		ug['z'] = Zi
+		ug['x'] = Xi
+		ug = ug.sort_values(by=['z', 'y', 'x'])
+		# sorted_df = sorted_df.reset_index(drop=True)
+		pot = [None] * maxderiv
+		x = np.asarray(demesh(ug['x']))/scale
+		x = np.around(x, decimals = decimals)
+		y = np.asarray(demesh(ug['y']))/scale
+		y = np.around(y, decimals = decimals)
+		z = np.asarray(demesh(ug['z']))/scale
+		z = np.around(z, decimals = decimals)
+		step = np.array((x[1]-x[0],y[1]-y[0],z[1]-z[0]))
+		origin = np.array((x[0],y[0],z[0]))
+		
+		name = 'potential'
+
+		data = np.array(ug[name])
+		shape = (len(x),len(y),len(z))
+		dim = shape[::-1]
+		if data.ndim > 1:
+			m_dim = data.shape[-1]
+		elif data.ndim == 1:
+			m_dim = 1
+		dim += (m_dim,)
+		data = np.asarray(data.reshape(dim).transpose(2, 1, 0, 3))
+		order = int((m_dim-1)/2)
+		pot[order] = xr.DataArray(data * scale**order, 
+											dims = ('x', 'y', 'z', 'l'), 
+											coords = {'x': x, 'y': y, 'z': z, 'l': _derivative_names[order]},
+											attrs = dict(derivative_order = order,
+														step = step,
+														origin = origin)
+											)
+
+		obj = cls(name=elec_name, data=pot)
+		obj.generate(maxderiv)
+		return obj
 
 	@classmethod
 	def from_vtk(cls, elec_name, file, maxderiv=4, scale = 1, decimals = 10):
@@ -176,6 +241,62 @@ class SimulatedElectrode(Electrode):
 												attrs = dict(derivative_order = order,
 															step = np.asarray(ug.spacing) / scale,
 															origin = np.asarray(ug.origin) / scale)
+												)
+		obj = cls(name=elec_name, data=pot)
+		obj.generate(maxderiv)
+		return obj
+	
+
+	@classmethod
+	def from_csv(cls, elec_name, file, maxderiv=4, scale = 0.001, decimals = 10, skiprows=9,sep=',',names=['x','y','z','potential','normE','Ex','Ey','Ez']):
+		'''Load grid potential data from .csv file and create a 'SimulatedElectrode' object
+
+		Parameters
+		elec_name: electrode name
+		file: file name string
+		maxderiv: max derivative order to generate
+		scale: the ratio between the new unit to the old unit, (scale = new / old, e.g. scale = 1mm/1m = 0.001) 
+				used to rescale the field and higher order derivative
+		decimals: the coordinates accuracy will be truncated to the designated decimal
+		sep: default is matching the output from comsol
+		skiprows: number of rows skipped in the csv file, default is matching the output from comsol
+		names: dataframe column name, need to match the order in the output file
+		perm: permutation of the coordinate. in multipole code, coordinates are [radial, height, axial], in ansys coordinates are [radial,axial,height] so perm would be [0,2,1]
+		-------
+
+		Returns
+		-----
+		GridLayout
+		'''
+		# x,y,z demesh, numpy function
+		ug = pd.read_csv(file, skiprows=skiprows, sep=sep,names=names)
+		ug = ug.sort_values(by = ['z', 'y','x'], ascending = [True, True,True])
+		pot = [None] * maxderiv
+		x = np.asarray(demesh(ug['x']))/scale
+		x = np.around(x, decimals = decimals)
+		y = np.asarray(demesh(ug['y']))/scale
+		y = np.around(y, decimals = decimals)
+		z = np.asarray(demesh(ug['z']))/scale
+		z = np.around(z, decimals = decimals)
+		step = np.array((x[1]-x[0],y[1]-y[0],z[1]-z[0]))
+		origin = np.array((x[0],y[0],z[0]))
+		for name in ('potential',['Ex','Ey','Ez']):
+			data = np.array(ug[name])
+			shape = (len(x),len(y),len(z))
+			dim = shape[::-1]
+			if data.ndim > 1:
+				m_dim = data.shape[-1]
+			elif data.ndim == 1:
+				m_dim = 1
+			dim += (m_dim,)
+			data = np.asarray(data.reshape(dim).transpose(2, 1, 0, 3))
+			order = int((m_dim-1)/2)
+			pot[order] = xr.DataArray(data * scale**order, 
+												dims = ('x', 'y', 'z', 'l'), 
+												coords = {'x': x, 'y': y, 'z': z, 'l': _derivative_names[order]},
+												attrs = dict(derivative_order = order,
+															step = step,
+															origin = origin)
 												)
 		obj = cls(name=elec_name, data=pot)
 		obj.generate(maxderiv)

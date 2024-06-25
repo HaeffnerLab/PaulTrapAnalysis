@@ -1,7 +1,7 @@
 
 import numpy as np
 from scipy.ndimage.interpolation import map_coordinates
-from .utils import construct_derivative, _derivative_names,demesh
+from PaulTrapAnalysis.functions.utils import construct_derivative, _derivative_names,demesh
 import xarray as xr
 import pyvista as pv
 import pandas as pd

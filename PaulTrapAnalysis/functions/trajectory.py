@@ -21,7 +21,7 @@ from matplotlib import cm, gridspec
 from mpl_toolkits import mplot3d
 import mpl_toolkits.mplot3d.axes3d as p3
 import cvxpy as cvx
-from .Trap import Trap
+from PaulTrapAnalysis.components.Trap import Trap
 
 class Trajectory:
 

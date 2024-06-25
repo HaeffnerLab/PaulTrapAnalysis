@@ -6,8 +6,8 @@ import pandas as pd
 import xarray as xr
 from collections import OrderedDict
 from scipy import optimize, constants as ct
-from .Electrode import SimulatedElectrode
-from .utils import expand_tensor
+from PaulTrapAnalysis.components.Electrode import SimulatedElectrode
+from PaulTrapAnalysis.functions.utils import expand_tensor
 
 
 try:

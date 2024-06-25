@@ -2,7 +2,7 @@
 Functions for locating the rf saddle point
 """
 
-from .expansion import spher_harm_expansion
+from PaulTrapAnalysis.functions.expansion import spher_harm_expansion
 import numpy as np
 import scipy.optimize as spo
 

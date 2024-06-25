@@ -9,14 +9,14 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from collections import OrderedDict
-from .expansion import spher_harm_expansion, spher_harm_cmp, nullspace, NamesUptoOrder2, PrintNamesUptoOrder2, NormsUptoOrder2
-from .optimsaddle import exact_saddle, find_saddle
+from PaulTrapAnalysis.functions.expansion import spher_harm_expansion, spher_harm_cmp, nullspace, NamesUptoOrder2, PrintNamesUptoOrder2, NormsUptoOrder2
+from PaulTrapAnalysis.functions.optimsaddle import exact_saddle, find_saddle
 import pickle
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from scipy.optimize import curve_fit
 import cvxpy as cvx
-from .Trap import Trap
+from PaulTrapAnalysis.components.Trap import Trap
 
 class MultipoleControl:
 

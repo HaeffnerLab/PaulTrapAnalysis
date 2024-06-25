@@ -37,7 +37,7 @@ setup(
         #'tensorflow'
     ],
     package_data = {
-        "edes": ["utils/*.py"]
+        "PaulTrapAnalysis": ["components/*.py", "functions/*.py"]
     },
     setup_requires=[],
     classifiers=[

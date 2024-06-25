@@ -1,0 +1,14 @@
+future
+numpy
+scipy
+pandas
+setuptools
+matplotlib
+tqdm
+plotly
+scikit-learn
+pyvista
+xarray
+cvxpy
+sympy
+cvxopt

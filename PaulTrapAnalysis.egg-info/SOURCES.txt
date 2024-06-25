@@ -1,7 +1,0 @@
-README.md
-setup.py
-PaulTrapAnalysis.egg-info/PKG-INFO
-PaulTrapAnalysis.egg-info/SOURCES.txt
-PaulTrapAnalysis.egg-info/dependency_links.txt
-PaulTrapAnalysis.egg-info/requires.txt
-PaulTrapAnalysis.egg-info/top_level.txt

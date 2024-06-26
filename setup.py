@@ -15,6 +15,7 @@ setup(
     long_description=description,
     author="Qian Yu, Shuqi Xu, Andris Huang",
     keywords=["Quantum Information Processing", "RF Engineering", "Paul Traps"],
+    url="https://github.com/Andris-Huang/PaulTrapAnalysis",
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
@@ -22,7 +23,8 @@ setup(
         "numpy",
         "scipy",
         "pandas",
-        "setuptools",
+        "setuptools", 
+        #"setuptools-scm",
         "matplotlib",
         'tqdm',
         #'optuna',
@@ -35,15 +37,17 @@ setup(
         'sympy',
         'cvxopt'
         #'tensorflow'
+        #"bem @ git+https://github.com/HaeffnerLab/bem"
     ],
     package_data = {
         "PaulTrapAnalysis": ["components/*.py", "functions/*.py"]
     },
     setup_requires=[],
     classifiers=[
-        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
     ],
     scripts=[
-        
+        "PaulTrapAnalysis/scripts/download",
+        "PaulTrapAnalysis/scripts/upload"
     ],
 )

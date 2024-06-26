@@ -65,7 +65,7 @@ class MultipoleControl:
         # Below setting up origin and region of interest and so on
         self.update_origin_roi(origin, roi)
 
-        return
+        
 
     def update_origin_roi(self, origin, roi):
         '''
@@ -82,7 +82,7 @@ class MultipoleControl:
         self.electrode_potential_roi = self.trap.individual_potential_contribution(x = x_slice, y = y_slice, z = z_slice)
 
         self.update_expansion_order(self.order)
-        return
+        
 
 
     def update_expansion_order(self, order):
@@ -93,7 +93,7 @@ class MultipoleControl:
         self.order = order
         self.multipole_expansion, self.electrode_potential_regenerated = self.expand_potentials_spherHarm(self.electrode_potential_roi, self.origin, order, self.multipole_names)
         self.update_control(self.controlled_elecs, self.used_multipoles)
-        return
+        
 
     def update_control(self, controlled_electrodes, used_multipoles):
         '''

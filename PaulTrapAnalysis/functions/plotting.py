@@ -154,7 +154,7 @@ def plot_projection(coord, V, Phi, r0, Mj, order, scale=1e-3, plot_scale=1e3, n=
     for i in range(3):
         axis_zeroed = [j for j in axis_ind if j != i]
         j, k = axis_zeroed
-        ind = np.where(np.abs(coord[j])+np.abs(coord[k])==0)
+        ind = np.where((abs(coord[j]) < 5e-4) & (abs(coord[k]) < 5e-4))
         ax[i].plot(coord[i][ind][::n]*plot_scale, V.flatten()[ind][::n], 'bo', label='Data')
         ax[i].plot(coord[i][ind][::n]*plot_scale, Phi.flatten()[ind][::n], 'rx', label='Fit')
         
@@ -166,7 +166,7 @@ def plot_projection(coord, V, Phi, r0, Mj, order, scale=1e-3, plot_scale=1e3, n=
         ax[i].plot(fit_i*plot_scale, Phi_curve.flatten(), 'r--')
         ax[i].set_xlabel(axis[i] + r' (um)')
         ax[i].set_ylabel('Potential (V)')
-        ax[i].set_title(f'{axis[j]}, {axis[k]} = {r0[j]*plot_scale}, {r0[k]*plot_scale} (um)')
+        ax[i].set_title(f'{axis[j]}, {axis[k]} = {r0[j]*plot_scale:.2f}, {r0[k]*plot_scale:.2f} (um)')
         ax[i].grid(True)
         ax[i].legend()
         

@@ -107,11 +107,11 @@ def get_potential_data(s, electrode='DC', electrode_factors=[]):
         else:
             DC_factors = electrode_factors
         
-        for ele in range(9):
-            V_roi += s.electrode_potential_roi[f'DC{ele}'] * DC_factors[ele] # V_
+        for ele in range(len(s.controlled_electrodes)):
+            V_roi += s.electrode_potential_roi[s.controlled_elecs[ele]] * DC_factors[ele] # V_
         
         for ele in range(9):
-            V += s.electrode_potential[f'DC{ele}'] * DC_factors[ele]
+            V += s.electrode_potential_roi[s.controlled_elecs[ele]] * DC_factors[ele]
         
             
         X_roi = V_roi.coords['x'].values

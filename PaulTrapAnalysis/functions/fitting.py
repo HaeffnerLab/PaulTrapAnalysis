@@ -4,12 +4,11 @@ from sklearn import linear_model
 import warnings
 warnings.simplefilter("ignore")
 
-from PaulTrapAnalysis.functions.data import *
-from PaulTrapAnalysis.functions.plotting import *
-from PaulTrapAnalysis.functions.gradients import *
-from PaulTrapAnalysis.functions.errors import *
-from PaulTrapAnalysis.functions.potentials import *
-import PaulTrapAnalysis.functions.data
+from PaulTrapAnalysis.functions import data
+from PaulTrapAnalysis.functions import expansion
+from PaulTrapAnalysis.functions import potentials
+from PaulTrapAnalysis.functions import plotting
+from PaulTrapAnalysis.functions import errors
 
 
 def spher_harm_expansion(potential_grid, r0, X, Y, Z, order, 
@@ -54,11 +53,11 @@ def spher_harm_expansion(potential_grid, r0, X, Y, Z, order,
         Yj, scale = potentials.manual_harm_basis(r0, X, Y, Z, order, scale, rotate=rotate)
     else:
         print('>>> Using default Harmonic Basis')
-        Yj, scale = spher_harm_basis(r0,X,Y,Z,order, scale=scale, rotate=rotate)
-        n_norm_rows = np.min([Yj.shape[1], len(NormsUptoOrder2)])
+        Yj, scale = expansion.spher_harm_basis(r0,X,Y,Z,order, scale=scale, rotate=rotate)
+        n_norm_rows = np.min([Yj.shape[1], len(expansion.NormsUptoOrder2)])
         if norm:
             for row_ind in range(n_norm_rows):
-                Yj[:,row_ind] = Yj[:,row_ind] / NormsUptoOrder2[row_ind]
+                Yj[:,row_ind] = Yj[:,row_ind] / expansion.NormsUptoOrder2[row_ind]
         #Yj, rnorm = spher_harm_basis_v2(r0, X, Y, Z, order)
     
     if method == 'lstsq':
@@ -178,27 +177,27 @@ def fit_potential(s, order, scale, r0, electrode='DC', electrode_factors=[],
     
     config_name = f'Fitting {electrode} on {fit_region} using {method} and {library} Harmonic Basis to order {order}, evaluated on '
     ## Eavluate and plot the fitting on ROI
-    Phi_roi = generate_potential(r0, X_roi, Y_roi, Z_roi, Mj, order, scale=scale, library=library, rotate=rotate)
+    Phi_roi = potentials.generate_potential(r0, X_roi, Y_roi, Z_roi, Mj, order, scale=scale, library=library, rotate=rotate)
     if plot_result:
         plot_coord_roi = data.get_grid(X_roi, Y_roi, Z_roi, r0, rotate=rotate)
-        plot_all_potentials(plot_coord_roi, V_roi, Phi_roi, region='ROI', m=1)
-        plot_projection(plot_coord_roi, V_roi, Phi_roi, r0, Mj, order, scale=scale, plot_scale=1e3, n=1, library=library)
-    err_roi = make_err_table(V_roi, Phi_roi, config_name+'ROI', display_table=False, save_table=save_err)[1]
+        plotting.plot_all_potentials(plot_coord_roi, V_roi, Phi_roi, region='ROI', m=1)
+        plotting.plot_projection(plot_coord_roi, V_roi, Phi_roi, r0, Mj, order, scale=scale, plot_scale=plot_scale, n=m, library=library)
+    err_roi = errors.make_err_table(V_roi, Phi_roi, config_name+'ROI', display_table=False, save_table=save_err)[1]
 
     ## Evaluate and plot the fitting on entire region
     if validate_entire:
-        Phi0 = generate_potential(r0, X0, Y0, Z0, Mj, order, scale=scale, library=library, rotate=rotate)
+        Phi0 = potentials.generate_potential(r0, X0, Y0, Z0, Mj, order, scale=scale, library=library, rotate=rotate)
         if plot_result:
             plot_coord0 = data.get_grid(X0, Y0, Z0, r0, rotate=rotate)
-            plot_all_potentials(plot_coord0, V0, Phi0, region='Entire Region', m=n)
-            plot_projection(plot_coord0, V0, Phi0, r0, Mj, order, scale=scale, plot_scale=1e3, n=1, library=library)
-        err_entire = make_err_table(V0, Phi0, config_name+'Entire Region', display_table=(True and display_err), save_table=save_err)[1]
+            plotting.plot_all_potentials(plot_coord0, V0, Phi0, region='Entire Region', m=n)
+            plotting.plot_projection(plot_coord0, V0, Phi0, r0, Mj, order, scale=scale, plot_scale=plot_scale, n=m, library=library)
+        err_entire = errors.make_err_table(V0, Phi0, config_name+'Entire Region', display_table=(True and display_err), save_table=save_err)[1]
     else:
         err_entire = None
     
     ## Plot expansion coefficients
     if plot_result:
-        plot_Mj(Mj)
-    #plot_Mj(M0)
+        plotting.plot_Mj(Mj)
+    
     
     return Mj, (err_roi, err_entire)

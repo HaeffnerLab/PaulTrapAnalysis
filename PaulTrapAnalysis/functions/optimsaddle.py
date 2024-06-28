@@ -175,7 +175,7 @@ def sum_of_e_field_2d(r,z0,V,X,Y,Z,exact_saddle=True):
 
     x0,y0=r[0],r[1]
 
-    c,c1,c2 = e.spher_harm_expansion(V, [x0, y0, z0], X, Y, Z, 4)
+    c,c1,c2 = spher_harm_expansion(V, [x0, y0, z0], X, Y, Z, 4)
     s=c**2
     f=sum(s[1:4])/sum(s[4:9])
     real_f=np.real(f[0])

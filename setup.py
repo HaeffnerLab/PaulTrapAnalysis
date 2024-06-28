@@ -13,7 +13,7 @@ setup(
     version="1.0.0",
     description="Toolkit for developing and analyzing RF Paul traps",
     long_description=description,
-    author="Qian Yu, Shuqi Xu, Andris Huang",
+    author="Shuqi Xu, Qian Yu, Andris Huang",
     keywords=["Quantum Information Processing", "RF Engineering", "Paul Traps"],
     url="https://github.com/Andris-Huang/PaulTrapAnalysis",
     packages=find_packages(),

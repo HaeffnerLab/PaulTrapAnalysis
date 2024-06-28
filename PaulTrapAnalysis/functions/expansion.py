@@ -29,7 +29,7 @@ def harmonics_dict(n, theta, phi):
         r[m] = sph_harm(m,n,theta,phi)
     return r
 
-def spher_harm_basis(r0, X, Y, Z, order):
+def spher_harm_basis(r0, X, Y, Z, order, scale=1):
     '''
     Computes spherical harmonics, just re-written matlab code
    
@@ -87,7 +87,7 @@ def spher_harm_basis(r0, X, Y, Z, order):
 
     return Q, scale
 
-def spher_harm_expansion(potential_grid, r0, X, Y, Z, order):
+def spher_harm_expansion(potential_grid, r0, X, Y, Z, order, scale=1):
     '''
     Compute the least-squares solution for the spherical harmonic expansion on potential_grid.
     Arguments:

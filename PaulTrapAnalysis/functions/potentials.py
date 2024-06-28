@@ -1,11 +1,9 @@
 import numpy as np
 import sympy
-import tensorflow as tf
 
 from PaulTrapAnalysis.functions.spherical_harmonics import harmonics
 from PaulTrapAnalysis.functions import data
-from PaulTrapAnalysis.functions import gradients
-from PaulTrapAnalysis.functions.expansion_utils import *
+from PaulTrapAnalysis.functions import expansion
 
 def manual_harm_basis_single_shot(x0, y0, z0, order, scale=1):
     '''
@@ -72,7 +70,7 @@ def generate_potential(r0, X, Y, Z, Mj, order, scale, library='manual', rotate=F
         Yj, scale = manual_harm_basis(r0, X, Y, Z, order, scale, rotate=rotate)
     else:
         print('>>> Using default Harmonic Basis')
-        Yj, scale = spher_harm_basis(r0, X, Y, Z, order, scale=scale, rotate=rotate)
+        Yj, scale = expansion.spher_harm_basis(r0, X, Y, Z, order, scale=scale, rotate=rotate)
     Phi = spher_harm_cmp(Mj, Yj, scale, order)
     return Phi
 
@@ -218,7 +216,7 @@ def spher_harm_basis_single_shot(x, y, z, order, scale=1):
 
     #real part of spherical harmonics
     for n in range(0,order+1):
-        p = harmonics_dict(n, theta, phi)
+        p = expansion.harmonics_dict(n, theta, phi)
         for m in range(-n,n+1):
             if m == 0:
                 c = (rs**n)*p[0]
@@ -233,10 +231,3 @@ def spher_harm_basis_single_shot(x, y, z, order, scale=1):
     Q = np.transpose(Q)
     #print(np.shape(Q))
     return Q, scale
-
-
-def get_pseudo_pot(zeta, Mj, rf_scale, order=4):
-    assert len(Mj) in np.cumsum([3, 5, 7, 9, 11, 13, 15]), 'Length of Mj seems wrong! Mj should be the one used for gradients'
-    x, y, z = zeta
-    V = tf.norm(tf.transpose(gradients.dPhi_tf((x,y,z), Mj=Mj, order=order)), axis=-1)**2 * rf_scale**2
-    return V

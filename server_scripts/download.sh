@@ -1,7 +1,7 @@
 #!/bin/bash
 
 user_name=andrewhz  # Change username
-local_prefix='../data'  # Change these to the desired prefix
+local_prefix='/c/Users/electron/etrap'  # Change these to the desired prefix
 server_prefix='etrap/data'
 
 

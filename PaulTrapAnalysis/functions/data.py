@@ -101,17 +101,13 @@ def get_potential_data(s, electrode='DC', electrode_factors=[]):
     if electrode == 'DC':
         V_roi = np.zeros(np.shape(s.electrode_potential_roi['DC1']))
         V = np.zeros(np.shape(s.electrode_potential['DC1']))
-        if len(electrode_factors) == 0:
-            DC_factors = [-0.364604, -0.550222, -0.019522, -0.758919, 0.078677,
-                          -0.548974, -0.034351, -0.759486, 0.082480]
-        else:
-            DC_factors = electrode_factors
+        DC_factors = electrode_factors
         
-        for ele in range(len(s.controlled_electrodes)):
+        for ele in range(len(s.controlled_elecs)):
             V_roi += s.electrode_potential_roi[s.controlled_elecs[ele]] * DC_factors[ele] # V_
-        
-        for ele in range(9):
-            V += s.electrode_potential_roi[s.controlled_elecs[ele]] * DC_factors[ele]
+
+        for ele in range(len(s.controlled_elecs)):
+            V += s.electrode_potential[s.controlled_elecs[ele]] * DC_factors[ele]
         
             
         X_roi = V_roi.coords['x'].values

@@ -199,7 +199,7 @@ class SimulatedElectrode(Electrode):
 		return obj
 
 	@classmethod
-	def from_vtk(cls, elec_name, file, maxderiv=4, scale = 1, decimals = 10):
+	def from_vtk(cls, elec_name, file, maxderiv=2, scale=1, decimals=10):
 		'''Load grid potential data from vtk StructurePoints and create a 'SimulatedElectrode' object
 
 		Parameters

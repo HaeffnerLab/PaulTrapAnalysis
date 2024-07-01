@@ -3,10 +3,10 @@ Functions for performing the spherical
 harmonic expansion of the potential
 '''
 import numpy as np
-import math as mt
+#import math as mt
 from scipy.special import sph_harm
-from scipy import linalg, matrix
-import scipy
+#from scipy import linalg, matrix
+#import scipy
 #import pyshtools
 
 # Define multipole names up to 2nd order

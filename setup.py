@@ -6,11 +6,11 @@ from __future__ import print_function
 from setuptools import find_packages
 from setuptools import setup
 
-description="Designing the trapped electron setups"
+description="Analyzing RF Paul traps"
 
 setup(
     name="PaulTrapAnalysis",
-    version="1.0.0",
+    version="2.0.0",
     description="Toolkit for developing and analyzing RF Paul traps",
     long_description=description,
     author="Shuqi Xu, Qian Yu, Andris Huang",
@@ -31,13 +31,13 @@ setup(
         'plotly',
         'scikit-learn',
         #'sphericart',
-        'pyvista',
+        'pyvista==0.40.1',
         'xarray',
         'cvxpy',
         'sympy',
-        'cvxopt'
+        'cvxopt',
         #'tensorflow'
-        #"bem @ git+https://github.com/HaeffnerLab/bem"
+        "bem @ https://github.com/Andris-Huang/bem/tarball/master"
     ],
     package_data = {
         "PaulTrapAnalysis": ["components/*.py", "functions/*.py"]

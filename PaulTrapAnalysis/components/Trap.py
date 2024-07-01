@@ -8,7 +8,7 @@ from collections import OrderedDict
 from scipy import optimize, constants as ct
 from PaulTrapAnalysis.components.Electrode import SimulatedElectrode
 from PaulTrapAnalysis.functions.utils import expand_tensor
-
+from PaulTrapAnalysis.components import Particle
 
 try:
 	import cvxopt, cvxopt.modeling
@@ -23,7 +23,7 @@ class Trap:
 	'''A collection of Electrodes.
 
 
-	Parameters
+	Attributes
 	--------
 	electrodes: ordered dictionary of Electrode, eg. {'DC1': DC1, 'DC2': DC2}
 	mass: mass of the trapped particle
@@ -37,17 +37,39 @@ class Trap:
 	config: ordered dictionary of trap configuration
 
 	'''
-	
-
-	def __init__(self, electrodes = OrderedDict(), mass = 40*ct.atomic_mass, charge = ct.elementary_charge, scale = 1.e-6, Omega = 50.E6,  **kwargs):
+	def __init__(self, electrodes={}, particle='Ca40', *args,
+			     potential_scale=1.e-6, drive_frequency=50.E6,  **kwargs):
+		""" 
+		Initializes a trap object.
 		
+		Parameters
+		------
+		electrodes : dict
+			Ordered dictionary of trap electrodes
+		particle : str or Particle
+			The particle to be trapped. Can be passed in either
+			through a str name, e.g. Electron or Ca40, or a custom
+			particle initialized through Particle(mass, charge)
+		potential_scale : float
+			Length scale of the potential, 1um from BEM
+		drive_frequecny : [Hz]
+			The drive frequency in Hz.
+		"""
 		self.electrodes = electrodes
-		self.config = OrderedDict([('mass', mass),
-                      ('charge', charge),
-                      ('scale', scale),
-                      ('Omega', Omega)])
+		if type(particle) is str:
+			self.particle = getattr(Particle, particle)(*args, **kwargs)
+		else: 
+			self.particle = particle
+		self.config = OrderedDict([('mass', self.particle.mass),
+                      ('charge', self.particle.charge),
+                      ('scale', potential_scale),
+                      ('Omega', drive_frequency)])
+
 
 	def update_electrodes(self, elecs):
+		"""
+		Updates a trap electrode based on the argument elecs.
+		"""
 		if type(elecs) is not list:
 			elecs = [elecs]
 		for elec in elecs:
@@ -94,30 +116,6 @@ class Trap:
 		for key, el in self.electrodes.items():
 			el.V_rf = voltages[el.name]
 
-	# def __getitem__(self, name_or_index):
-	# 	'''Electrode lookup.
-
-
-	# 	Returns
-	# 	------
-	# 	Electrode
-	# 		The electrode given by its name or index.
-	# 		None if not found by name
-
-	# 	Raises
-	# 	------
-	# 	IndexError
-	# 		If electrode index does not exist
-	# 	'''
-
-	# 	try:
-	# 		return list.__getitem__(self,name_or_index)
-	# 	except TypeError:
-	# 		for ei in self:
-	# 			if ei.name == name_or_index:
-	# 				return ei
-
-	# Electrode = __getitem__
 
 	@contextmanager
 	def with_voltages(self, V_dcs=None, V_rfs=None):
@@ -222,7 +220,6 @@ class Trap:
 		-----
 		Haven't implement the higher order derivative method yet
 		'''
-
 		pot = []
 		for key, ei in self.electrodes.items():
 			vi = getattr(ei, 'V_dc', None)
@@ -270,7 +267,6 @@ class Trap:
 			pass
 		return pot
 
-
 	def time_dependent_potential(self, x = None, y = None, z = None, derivative=0, t=0., expand=False):
 		'''Electric potential at an instant. No pseudopotential averaging.
 
@@ -307,7 +303,6 @@ class Trap:
 		rf = self.rf_potential(x, y, z, derivative, expand)
 		return dc + np.cos(omega*t)*rf
 
-
 	def pseudo_potential(self, x = None, y = None, z = None, derivative = 0):
 		'''The pseudopotential/ ponderomotive potential
 
@@ -340,9 +335,6 @@ class Trap:
 		else:
 			raise ValueError("only know how to generate pseupotentials up to 2nd order")
 		
-
-		return
-
 	def total_potential(self, x = None, y = None, z = None, derivative=0):
 		'''Combined electrical and pseudo potential.
 

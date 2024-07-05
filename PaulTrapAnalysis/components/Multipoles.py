@@ -88,7 +88,7 @@ class MultipoleControl:
     def update_expansion_order(self, order):
         '''
         This function updates expansion order, and also update everything related to them.
-        Can be called from object to update all related staff.
+        Can be called from object to update all related stuff.
         '''
         self.order = order
         self.multipole_expansion, self.electrode_potential_regenerated = self.expand_potentials_spherHarm(self.electrode_potential_roi, self.origin, order, self.multipole_names)

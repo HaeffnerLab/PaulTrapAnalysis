@@ -99,8 +99,8 @@ def get_potential_data(s, electrode='DC', electrode_factors=[]):
     """
         
     if electrode == 'DC':
-        V_roi = np.zeros(np.shape(s.electrode_potential_roi['DC1']))
-        V = np.zeros(np.shape(s.electrode_potential['DC1']))
+        V_roi = np.zeros(np.shape(s.electrode_potential_roi[s.controlled_elecs[0]]))
+        V = np.zeros(np.shape(s.electrode_potential[s.controlled_elecs[0]]))
         DC_factors = electrode_factors
         
         for ele in range(len(s.controlled_elecs)):
@@ -124,11 +124,11 @@ def get_potential_data(s, electrode='DC', electrode_factors=[]):
         else:
             RF_factors = electrode_factors
             
-        V_roi = np.zeros(np.shape(s.electrode_potential_roi['RF2']))
-        V = np.zeros(np.shape(s.electrode_potential['RF2']))
-        for ele in range(1,3):
-            V_roi += s.electrode_potential_roi[f'RF{ele}'] * RF_factors[ele-1]
-            V += s.electrode_potential[f'RF{ele}'] * RF_factors[ele-1]
+        V_roi = np.zeros(np.shape(s.electrode_potential_roi[s.rf_elecs[0]]))
+        V = np.zeros(np.shape(s.electrode_potential[s.rf_elecs[0]]))
+        for ele in range(len(s.rf_elecs)):
+            V_roi += s.electrode_potential_roi[s.rf_elecs[ele]] * RF_factors[ele]
+            V += s.electrode_potential[s.rf_elecs[ele]] * RF_factors[ele]
         #V_roi = s.electrode_potential_roi['RF2'] * RF_factor # only RF2 since RF1 is grounded
         X_roi = V_roi.coords['x'].values
         Y_roi = V_roi.coords['y'].values

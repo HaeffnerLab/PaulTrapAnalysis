@@ -37,7 +37,7 @@ setup(
         'sympy',
         'cvxopt',
         #'tensorflow'
-        "bem @ https://github.com/Andris-Huang/bem/tarball/master"
+        "bem @ https://github.com/HaeffnerLab/bem/tarball/master"
     ],
     package_data = {
         "PaulTrapAnalysis": ["components/*.py", "functions/*.py"]

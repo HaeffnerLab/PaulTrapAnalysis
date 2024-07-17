@@ -89,7 +89,7 @@ def spher_harm_expansion(potential_grid, r0, X, Y, Z, order,
 
 def fit_potential(s, order, scale, r0, electrode='DC', electrode_factors=[],
                   validating_roi=None, fit_region='ROI', method='lstsq', 
-                  n=1, library='default', plot_scale=1e3, unit=1, 
+                  n=1, library='default', plot_scale=1e3, unit=1, Mj_threshold=0.01,
                   validate_entire=False, rotate=False,
                   plot_result=True, save_err=True, display_err=True):
     """
@@ -197,7 +197,7 @@ def fit_potential(s, order, scale, r0, electrode='DC', electrode_factors=[],
     
     ## Plot expansion coefficients
     if plot_result:
-        plotting.plot_Mj(Mj)
+        plotting.plot_Mj(Mj, Mj_threshold=Mj_threshold)
     
     
     return Mj, (err_roi, err_entire)

@@ -121,11 +121,13 @@ def get_color(Phi, ref=None):
     return color
 
 
-def plot_Mj(Mj, mutipole_names=['C', 'Ey', 'Ez', 'Ex', 'U3', 'U4', 'U2', 'U5', 'U1'], title='', save_fig=False):
+def plot_Mj(Mj, mutipole_names=['C', 'Ey', 'Ez', 'Ex', 'U3', 'U4', 'U2', 'U5', 'U1'], 
+            Mj_threshold=0.01,
+            title='', save_fig=False):
     
     fig, ax = plt.subplots(figsize=(0.3*len(Mj), 4))
     ax.bar(list(range(1,len(Mj)+1)), Mj.flatten())
-    add_value_labels(ax)
+    add_value_labels(ax, threshold=Mj_threshold)
     #ax.axvline(np.argmax(abs(Mj))+1, label='j ='+str(np.argmax(abs(Mj))+1), 
     #            linestyle='--', color='r', alpha=0.7)
     tick_name = list(mutipole_names)

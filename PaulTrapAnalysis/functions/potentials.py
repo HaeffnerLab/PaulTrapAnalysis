@@ -70,7 +70,7 @@ def generate_potential(r0, X, Y, Z, Mj, order, scale, library='manual', rotate=F
         Yj, scale = manual_harm_basis(r0, X, Y, Z, order, scale, rotate=rotate)
     else:
         print('>>> Using default Harmonic Basis')
-        Yj, scale = expansion.spher_harm_basis(r0, X, Y, Z, order, scale=scale, rotate=rotate)
+        Yj, scale = expansion.spher_harm_basis(r0, X, Y, Z, order, scale=scale)
     Phi = spher_harm_cmp(Mj, Yj, scale, order)
     return Phi
 

@@ -53,7 +53,7 @@ def spher_harm_expansion(potential_grid, r0, X, Y, Z, order,
         Yj, scale = potentials.manual_harm_basis(r0, X, Y, Z, order, scale, rotate=rotate)
     else:
         print('>>> Using default Harmonic Basis')
-        Yj, scale = expansion.spher_harm_basis(r0,X,Y,Z,order, scale=scale, rotate=rotate)
+        Yj, scale = expansion.spher_harm_basis(r0,X,Y,Z,order, scale=scale)
         n_norm_rows = np.min([Yj.shape[1], len(expansion.NormsUptoOrder2)])
         if norm:
             for row_ind in range(n_norm_rows):

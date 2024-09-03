@@ -160,12 +160,13 @@ def plot_projection(coord, V, Phi, r0, Mj, order, scale=1e-3, plot_scale=1e3, n=
         ax[i].plot(coord[i][ind][::n]*plot_scale, V.flatten()[ind][::n], 'bo', label='Data')
         ax[i].plot(coord[i][ind][::n]*plot_scale, Phi.flatten()[ind][::n], 'rx', label='Fit')
         
-        fit_i = np.linspace(min(coord[i])-abs(min(coord[i]))*0.2, max(coord[i])+abs(max(coord[i]))*0.2, 20)
+        fit_i = np.linspace(min(coord[i][ind])-abs(min(coord[i][ind]))*0.2, max(coord[i][ind])+abs(max(coord[i][ind]))*0.2, 20)
         temp_coord = [0,0,0]
         temp_coord[i] = fit_i
-        temp_coord[j] = temp_coord[k] = np.zeros(np.shape(fit_i))
+        temp_coord[j] = np.zeros(np.shape(fit_i))
+        temp_coord[k] = np.zeros(np.shape(fit_i))
         Phi_curve = potentials.generate_potential_single_shot(*temp_coord, Mj, order, scale=scale, library=library)
-        ax[i].plot(fit_i*plot_scale, Phi_curve.flatten(), 'r--')
+        ax[i].plot(temp_coord[i]*plot_scale, Phi_curve.flatten(), 'r--')
         ax[i].set_xlabel(axis[i] + r' (um)')
         ax[i].set_ylabel('Potential (V)')
         ax[i].set_title(f'{axis[j]}, {axis[k]} = {r0[j]*plot_scale:.2f}, {r0[k]*plot_scale:.2f} (um)')

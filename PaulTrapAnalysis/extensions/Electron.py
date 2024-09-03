@@ -14,7 +14,7 @@ import multiprocessing
 
 ## Constants and parameters
 #mport run
-from scipy.constants import m_e, e
+from scipy.constants import m_e, e, k
 
 ## BEM 
 from bem import Result
@@ -115,6 +115,100 @@ def get_order(j):
     else: 
         return 0
     
+
+def find_A(fz, T=40): 
+    """
+    Find the motional amplitude of an electron given frequency and
+    temperature.
+    
+    Parameters
+    ------
+    fz : [MHz]
+        Frequency in MHz
+    T : [K]
+        Temperature
+        
+    Returns
+    ------
+    A : [um]
+        Motional amplitude in um
+    """
+    return np.sqrt(2*k*T/m_e/(2*np.pi*fz*1e6)**2)*1e6
+
+def compute_shift(A, C3, C4, C5, C6):
+    """
+    Calculate the approximated frequency shift using the
+    equation from Landau perturbation methods, assuming a 
+    1D potential of U(z) = sum( c_i z^i ). Equation adopted
+    from Joshua Goldman's PhD thesis, P43
+    """
+    a2 = -15/16 * (C3**2) + 3/4 * C4 
+    a3 = C3 * a2 
+    a4 = -2565/1024*(C3**4) + 645/128 * (C3**2)*C4 + \
+        -105/32*C3*C5 + 15/16*C6
+    a5 = (C5-2*C3*C4)*a2 + 2*C3*a4 
+    
+    return a2*A**2 + a3*A**3 + a4*A**4 + a5*A**5
+
+def get_shift_analytical(A, c3_c2=0, c4_c2=0, c5_c2=0, c6_c2=0): 
+    """
+    Calculate the approximated frequency shift using the
+    equation from Landau perturbation methods, assuming a 
+    1D potential of U(z) = sum( c_i z^i ). Equation adopted
+    from Joshua Goldman's PhD thesis, P43
+
+    Parameters
+    ------
+    A : [um]
+        The amplitude of motion in um
+    c3_c2 : [um^{-1}]
+        The ratio c3/c2 in um^{-1}
+    c4_c2 : [um^{-2}]
+        The ratio c4/c2 in um^{-2}
+    c5_c2 : [um^{-3}]
+        The ratio c5/c2 in um^{-3}
+    c6_c2 : [um^{-4}]
+        The ratio c6/c2 in um^{-4}
+    
+    Returns
+    ------
+    The total relative frequency shift
+
+    Plots
+    -----
+    Contribution of each c_i term to the frequency shift. Each
+    bar in the plot represents the frequency shift with c_i and
+    c_{j!=i} = 0. Note that the sum of all the bar values can be
+    less than the total frequency shift, as the contribution from
+    c_i and c_j may not be independent.
+    """
+    C3 = c3_c2 
+    C4 = c4_c2
+    C5 = c5_c2
+    C6 = c6_c2
+
+    shift_3 = compute_shift(A, C3, 0, 0, 0)
+    shift_4 = compute_shift(A, 0, C4, 0, 0)
+    shift_5 = compute_shift(A, 0, 0, C5, 0)
+    shift_6 = compute_shift(A, 0, 0, 0, C6)
+
+    big_plt_font()
+    fig, ax = plt.subplots(figsize=(12, 4))
+    all_shifts = [abs(shift_3), abs(shift_4), abs(shift_5), abs(shift_6)]
+    ax.bar(range(len(all_shifts)), all_shifts)
+    add_value_labels_log(ax, threshold=0)
+    tick_name = [r'$z^3$', r'$z^4$', r'$z^5$', r'$z^6$']
+    ax.set_xticks(range(len(all_shifts)), tick_name, rotation = 0)
+    ax.set_ylabel(r'$\Delta \omega/\omega$')
+    ax.set_yscale('log')
+    ax.grid()
+    ax.set_title(f'Relative frequency shift at {A:.0f}um motional amplitude')
+    plt.tight_layout()
+    plt.show()
+
+    return compute_shift(A, C3, C4, C5, C6)
+    
+
 def get_shift(j, Mj, M2, A, param_dict=param_dict): 
     """
     Get the relative frequency shift of a spherical 
@@ -351,6 +445,61 @@ def assign_trap_rf_single_pair(trap, prefix, suffix,
     
     return trap
 
+def assign_trap_rf_two_pairs(trap, prefix, suffix,  
+                   V0_rf, drive_method=[1,-1], 
+                   electrodes=['RF1', 'RF2'],
+                   l0=100e-6, Ω_e=2*np.pi*2.5e9):
+    """
+    Assign the imported RF data to the trap, and 
+    calculate the pseudopoential. This assumes that the 
+    trap only has one pair of RF electrodes.
+    
+    Parameters
+    ----------
+    trap : Trap object
+        The trap to assign info to
+    rf_data : [result_rf0, result_rf1, result_rf2]
+        The imported RF result data from .vtk files
+    V0_rf : float
+        The amplitudes for the RF drive
+    drive_method : list
+        The drive method for the RF pairs. If out
+        of phase, then this is [-1, 1]
+    l0 : [m]  #FIXME
+        The length scale of the simulation grid, 
+        default is 100e-6 (100 um)
+
+    Returns
+    -------
+    trap : Trap object
+        The updated trap 
+    """
+    scale = l0 
+    trap.l0 = l0
+    
+    result_rf1 = Result.from_vtk(prefix+suffix, electrodes[0])
+    trap.result_rf1 = result_rf1
+    rf1_field = result_rf1.field / scale
+    
+    result_rf2 = Result.from_vtk(prefix+suffix, electrodes[1])
+    trap.result_rf2 = result_rf2
+    rf2_field = result_rf2.field / scale
+
+    v1, v2 = drive_method
+    rf_op = v1*rf1_field + v2*rf2_field
+    trap.rf_field = rf_op
+    
+    rf_potential = V0_rf*(v1*result_rf1.potential + v2*result_rf2.potential)
+    trap.V0_rf = V0_rf
+    trap.rf_potential_data = rf_potential
+    
+    pp_rf = np.square(rf_op).sum(axis=0).reshape(result_rf1.grid.shape)
+    trap.rf_field_square = pp_rf
+    pp_rf = PseudoPotential(pp_rf,m_e,Ω_e,V0_rf)
+    trap.pp_rf = pp_rf 
+
+    
+    return trap
 
 ################# Trap height ##################
 def analyze_trap_height(trap, find_saddle=True):
@@ -459,7 +608,7 @@ def analyze_d_eff(trap, dc_electrode='DC12', direction='y',
     if force_center:  # force the rf null to be at the center of z
         rf_null_index = len(rf0_field[a,b,:])//2
         rf_null = trap.z[rf_null_index]
-        
+    big_plt_font()    
     plt.plot(trap.z[:]*scale*1e6, rf0_field[a, b, :])
     plt.xlabel("Trap height (um)")
     plt.ylabel(f"$E_{direction}$ (V/m)")
@@ -486,6 +635,10 @@ def parabola(x, x0, amp):
 
 def parabola0(x, amp):
     return amp * x**2
+
+def poly_fit(xi, x0, a2, a3, a4, a5, a6): 
+    x = xi - x0 
+    return a2*x**2 + a3*x**3 + a4*x**4 + a5*x**5 + a6*x**6
         
 def analyze_radial_frequency(trap, fit_range=10e-6, 
                              debug=False):
@@ -496,10 +649,6 @@ def analyze_radial_frequency(trap, fit_range=10e-6,
     ----------
     trap : Trap object
         The trap being analyzed
-    Ω_e : [rad/s]
-        Drive frequency
-    V_rf : list
-        RF voltage list [V1,V2]
     fit_range : [m]
         Fit range of the pseudo potential, default 10um.
         Note the unit, in SI!
@@ -543,24 +692,26 @@ def analyze_radial_frequency(trap, fit_range=10e-6,
         print(argy1,argy2)
     
     ### fit the data ###
-    poptx, pcovx = curve_fit(parabola, x_SI[argx1:argx2], px[argx1:argx2], p0 = [x_SI[np.argmin(px)], 1E7])
+    poptx, pcovx = curve_fit(parabola, x_SI[argx1:argx2], px[argx1:argx2], p0 = [x_SI[np.argmin(px)], 1E7], xtol=1e-10)
     x0 = poptx[0]
     x_amp = poptx[1]
-    x_coordinates = x_SI - x0
+    x_coordinates = x_SI #- x0
     
-    popty, pcovy = curve_fit(parabola, y_SI[argy1:argy2],py[argy1:argy2], p0 = [y_SI[np.argmin(py)], 1E7])
+    popty, pcovy = curve_fit(parabola, y_SI[argy1:argy2],py[argy1:argy2], p0 = [y_SI[np.argmin(py)], 1E7], xtol=1e-10)
     y0 = popty[0]
     y_amp = popty[1]
-    y_coordinates = y_SI - y0
+    y_coordinates = y_SI #- y0
+    trap.rf_null_x = x0 * 1e6
+    trap.rf_null_y = y0 * 1e6  # in um
     
     ### Find trap frequencies ###
     k = 1
     x_range = np.linspace(k*x_coordinates[0],k*x_coordinates[-1], 1000)
     y_range = np.linspace(k*y_coordinates[0],k*y_coordinates[-1], 1000)
-    fit_x = parabola0(x_range, x_amp)
-    fit_y = parabola0(y_range, y_amp)
-    fit_x_match = parabola0(x_coordinates, x_amp)
-    fit_y_match = parabola0(y_coordinates, y_amp)
+    fit_x = parabola(x_range, *poptx) #parabola0(x_range, x_amp)
+    fit_y = parabola(y_range, *popty) #parabola0(y_range, y_amp)
+    fit_x_match = parabola(x_coordinates, *poptx) #parabola0(x_coordinates, x_amp)
+    fit_y_match = parabola(y_coordinates, *popty) #parabola0(y_coordinates, y_amp)
     
     d2Udx2 = 2*x_amp
     trapf_x = TrapFrequency(d2Udx2,m_e)
@@ -589,7 +740,6 @@ def analyze_radial_frequency(trap, fit_range=10e-6,
     ax2.set_xlabel('Distance (um)', size = 8)
     ax2.set_ylabel('$\Delta$ (eV)', size = 8)
     ax2.set_ylim(-0.05, 0.05)
-    # ax2.set_xlim(-0.0007, 0.0007)
     ax2.set_xlim(k*x_coordinates[0]*1E6, k*x_coordinates[-1]*1E6)
     ax2.axhline(y = 0, color = 'grey', linestyle = '-.')
     ax2.grid()
@@ -603,6 +753,104 @@ def analyze_radial_frequency(trap, fit_range=10e-6,
     
 
     return trapf_x, trapf_y
+
+def poly_fit_anharm_axial(trap, fit_range=10e-6, T=40): 
+    """
+    Fitting the axial potential along the line through x = 0 and y = 0, using a polynomial
+    U(z) up to the 6th order. 
+    
+    Parameters
+    ------
+    trap : Trap object
+        The trap being analyzed
+    fit_range : [m]
+        Fit range of the pseudo potential, default 10um.
+        Note the unit, in SI!
+    T : [K]
+        Temperature of axial direction
+
+    Returns
+    -------
+    omega_z : [MHz]
+        Frequency in z direction only assuming RF confinement
+
+    Plots
+    -----
+    x&y (um) line cut of pseudop, fit, and deviation
+    '''
+    """
+    z = trap.z
+
+    ### Setup axes ###
+    scale = trap.l0
+    pp_rf = trap.pp_rf 
+    a = int(np.floor(pp_rf.shape[0]/2))
+    b = int(np.floor(pp_rf.shape[1]/2))
+    z_SI = z*scale
+    pz = pp_rf[a, b, :]*e # in J, SI units
+
+    fit_zlim1 = z_SI[np.argmin(pz)]-fit_range
+    fit_zlim2 = z_SI[np.argmin(pz)]+fit_range
+    argz1 = np.argmin(np.abs(z_SI - fit_zlim1))
+    argz2 = np.argmin(np.abs(z_SI - fit_zlim2))
+
+
+    ### fit the data ###
+    poptx, pcovx = curve_fit(poly_fit, z_SI[argz1:argz2], pz[argz1:argz2], p0 = [z_SI[np.argmin(pz)], 1E7, 0, 0, 0, 0])
+    z0 = poptx[0]
+    c2, c3, c4, c5, c6 = poptx[1:]
+    z_coordinates = z_SI - z0
+
+    ### Find trap frequencies ###
+    k = 1
+    z_range = np.linspace(k*z_coordinates[0],k*z_coordinates[-1], 1000)
+    fit_z = poly_fit(z_range, 0, *poptx[1:])
+    fit_z_match = poly_fit(z_coordinates, 0, *poptx[1:])
+
+    d2Udx2 = 2*c2
+    trapf_z = TrapFrequency(d2Udx2,m_e)
+    print(f'z trap frequency is about {trapf_z/1E6:.3f} MHz')
+
+
+    ### Plot pseudo-potential fit ###
+    small_plt_font()
+
+    fig, (ax1, ax2) = plt.subplots(2,1,sharex = True, 
+                                gridspec_kw={'height_ratios': [3, 1]},
+                                figsize=(3.4,3.5), dpi = 200)
+    ax1.plot(z*scale*1e6, pp_rf[a, b, :], label = "Pseudopotential along z")
+    ax1.plot(z_range*1E6, fit_z/e, '--', label = r"Fit $U(z) = \sum_{i=2}^6 c_iz^i$," + \
+                                                f"\n$f_z$ = {trapf_z/1E6:.2f} MHz" + \
+                                                f"\n$c_3/c_2$ = {c3/c2*1e-6:.1e} {r'$um^{-1}$'}" + \
+                                                f"\n$c_4/c_2$ = {c4/c2*1e-12:.1e} {r'$um^{-2}$'}" + \
+                                                f"\n$c_5/c_2$ = {c5/c2*1e-18:.1e} {r'$um^{-3}$'}" + \
+                                                f"\n$c_6/c_2$ = {c6/c2*1e-24:.1e} {r'$um^{-4}$'}")
+    ax1.grid()
+    ax1.legend()
+    ax1.set_ylim(-1E-3, k**2*np.max(pz)*1.1/e)
+    ax1.set_ylabel('Pseudopotential (eV)', size = 8)
+
+    ax2.plot(z_coordinates*1E6,(pz-fit_z_match)/e, '-', color = 'C1', label='$z$')
+    ax2.set_xlabel('Distance (um)', size = 8)
+    ax2.set_ylabel('$\Delta$ (eV)', size = 8)
+    ax2.set_ylim(-0.05, 0.05)
+    # ax2.set_xlim(-0.0007, 0.0007)
+    ax2.set_xlim(k*z_coordinates[0]*1E6, k*z_coordinates[-1]*1E6)
+    ax2.axhline(y = 0, color = 'grey', linestyle = '-.')
+    ax2.grid()
+    ax2.legend()
+    fig.align_ylabels()
+    fig.tight_layout()
+    # plt.savefig('Electron_3layer_pseudo_y_1p6GHz_90V.png', bbox_inches = 'tight')
+
+    plt.show()
+
+    A = find_A(trapf_z/1e6, T)
+    df_f = get_shift_analytical(A, (c3/c2)*1e-6, (c4/c2)*1e-12, (c5/c2)*1e-18, (c6/c2)*1e-24)
+    print(f">>> Relative frequency shift at {T}K is approximately {df_f:.3e}")
+
+
+    return trapf_z
 
 
 def plot_pseudo_contour(trap, rf_null_index=None, clim=(-4, 3), xlim=None, ylim=None, title=None): 
@@ -629,7 +877,7 @@ def plot_pseudo_contour(trap, rf_null_index=None, clim=(-4, 3), xlim=None, ylim=
     
     level = np.logspace(*clim, 1000, base = 10, endpoint = True) # min max level in the plot
     contp = ax.contourf(100 * x_plot[:], 100 * y_plot[:],
-                        pp_plot,
+                        np.transpose(pp_plot),
                         locator=ticker.LogLocator(),
                         levels = level,
                         cmap = "seismic")

@@ -321,7 +321,8 @@ def plot_frequency_shift(Mj, A=10,
 
 ################## Import trap data ##################
 
-def import_trap_data(prefix, electrodes=[], elec_file_lookup={}, scale=10, debug=False):
+def import_trap_data(prefix, electrodes=[], elec_file_lookup={}, scale=10, 
+                     file_type='vtk', debug=False):
     '''
     Import the data and create Electrode object, assemble 
     the Trap object from the Electrodes and parameters. Rename 
@@ -357,27 +358,41 @@ def import_trap_data(prefix, electrodes=[], elec_file_lookup={}, scale=10, debug
             elec_name = elec_file_lookup[elec]
         else: 
             elec_name = elec
-        etrap.update_electrodes(
-            SimulatedElectrode.from_vtk(elec_name=elec, 
-                                        scale=scale, 
-                                        file=prefix+'_'+elec_name +'.vtk',
-                                        maxderiv=2
-                                       )
-        )
-        
+        if file_type == 'vtk':
+            etrap.update_electrodes(
+                SimulatedElectrode.from_vtk(elec_name=elec, 
+                                            scale=scale, 
+                                            file=prefix+'_'+elec_name +'.vtk',
+                                            maxderiv=2
+                                        )
+            )
+        elif file_type == 'fld': 
+            etrap.update_electrodes(
+                SimulatedElectrode.from_fld(elec_name=elec, 
+                                            scale=scale, 
+                                            file=prefix+'_'+elec_name +'.fld',
+                                            maxderiv=2
+                                        )
+            )
+        else: 
+            print(">>> Unknown file type, currently only supports .vtk and .fld. Please modify Electron extension for updates.")
     etrap.scale = scale
     etrap.electrode_file_lookup = elec_file_lookup
     etrap.prefix = prefix
+    etrap.file_type = file_type
     return etrap
 
-def import_rf_data(trap, prefix, suffix):
+def import_rf_data(trap, prefix, suffix, file_type='vtk'):
     """
     Import the resulting RF data from simulated .vtk files.
     """
     t0 = time()
-    result_rf0 = Result.from_vtk(prefix+suffix, 'RF0')
-    result_rf1 = Result.from_vtk(prefix+suffix, 'RF1')
-    result_rf2 = Result.from_vtk(prefix+suffix, 'RF2')
+    if file_type == 'vtk':
+        result_rf0 = Result.from_vtk(prefix+suffix, 'RF0')
+        result_rf1 = Result.from_vtk(prefix+suffix, 'RF1')
+        result_rf2 = Result.from_vtk(prefix+suffix, 'RF2')
+    elif file_type == 'fld': 
+        raise NotImplementedError
     print("Computing time: %f s"%(time()-t0))
 
     return result_rf0, result_rf1, result_rf2
@@ -428,22 +443,29 @@ def assign_trap_rf_single_pair(trap, prefix, suffix,
     scale = l0 
     trap.l0 = l0
     
-    result_rf1 = Result.from_vtk(prefix+suffix, electrodes)
+    if trap.file_type == 'vtk':
+        result_rf1 = Result.from_vtk(prefix+suffix, electrodes)
+        rf1_field = result_rf1.field / scale
+        rf_potential = V0_rf*result_rf1.potential 
+        pp_rf = np.square(rf1_field).sum(axis=0).reshape(result_rf1.grid.shape)
+    else:
+        result_rf1 = trap.electrodes[electrodes].potential()
+        rf1_field = trap.electrodes[electrodes].potential(derivative=1) / scale
+        rf_potential = V0_rf*np.array(result_rf1)[:,:,:,0]
+        pp_rf = np.array(np.square(rf1_field).sum(axis=-1)).reshape(np.shape(rf_potential))
+
     trap.result_rf1 = result_rf1
-    rf1_field = result_rf1.field / scale
     trap.rf_field = rf1_field 
     
-    rf_potential = V0_rf*result_rf1.potential
     trap.V0_rf = V0_rf
     trap.rf_potential_data = rf_potential
     
-    pp_rf = np.square(rf1_field).sum(axis=0).reshape(result_rf1.grid.shape)
     trap.rf_field_square = pp_rf
     pp_rf = PseudoPotential(pp_rf,m_e,Ω_e,V0_rf)
     trap.pp_rf = pp_rf 
 
-    
     return trap
+
 
 def assign_trap_rf_two_pairs(trap, prefix, suffix,  
                    V0_rf, drive_method=[1,-1], 
@@ -477,29 +499,45 @@ def assign_trap_rf_two_pairs(trap, prefix, suffix,
     scale = l0 
     trap.l0 = l0
     
-    result_rf1 = Result.from_vtk(prefix+suffix, electrodes[0])
-    trap.result_rf1 = result_rf1
-    rf1_field = result_rf1.field / scale
-    
-    result_rf2 = Result.from_vtk(prefix+suffix, electrodes[1])
-    trap.result_rf2 = result_rf2
-    rf2_field = result_rf2.field / scale
+    if trap.file_type == 'vtk':
+        result_rf1 = Result.from_vtk(prefix+suffix, electrodes[0])
+        rf1_field = result_rf1.field / scale
+        result_rf2 = Result.from_vtk(prefix+suffix, electrodes[1])
+        rf2_field = result_rf2.field / scale
+        rf1_potential = result_rf1.potential
+        rf2_potential = result_rf2.potential
+        shape = result_rf1.grid.shape
+        axis = 0  # NOTE: Result field data is shaped as (dim, x, y, z)
+    else: 
+        result_rf1 = trap.electrodes[electrodes[0]].potential()
+        rf1_field = trap.electrodes[electrodes[0]].potential(derivative=1) / scale / trap.scale
+        rf1_potential = V0_rf*np.array(result_rf1)[:,:,:,0]
+        result_rf2 = trap.electrodes[electrodes[1]].potential()
+        rf2_field = trap.electrodes[electrodes[1]].potential(derivative=1) / scale / trap.scale
+        rf2_potential = V0_rf*np.array(result_rf2)[:,:,:,0]
+        shape = np.shape(rf1_potential)
+        axis = -1  # NOTE: electrode field data is shaped as (x, y, z, dim)
 
+    trap.result_rf1 = result_rf1
+    trap.result_rf2 = result_rf2
+    
     v1, v2 = drive_method
     rf_op = v1*rf1_field + v2*rf2_field
     trap.rf_field = rf_op
     
-    rf_potential = V0_rf*(v1*result_rf1.potential + v2*result_rf2.potential)
+    rf_potential = V0_rf*(v1*rf1_potential + v2*rf2_potential)
     trap.V0_rf = V0_rf
     trap.rf_potential_data = rf_potential
     
-    pp_rf = np.square(rf_op).sum(axis=0).reshape(result_rf1.grid.shape)
+    pp_rf = np.array(np.square(rf_op).sum(axis=axis)).reshape(shape)
     trap.rf_field_square = pp_rf
     pp_rf = PseudoPotential(pp_rf,m_e,Ω_e,V0_rf)
     trap.pp_rf = pp_rf 
 
     
     return trap
+
+
 
 ################# Trap height ##################
 def analyze_trap_height(trap, find_saddle=True):
@@ -529,8 +567,16 @@ def analyze_trap_height(trap, find_saddle=True):
         Index of the trap height in the z direction (closet 
         to trap height if the height is not a grid point)
     '''
-    coord_x, coord_y, coord_z = trap.result_rf1.grid.to_xyz()
-    trap.x, trap.y, trap.z = coord_x, coord_y, coord_z
+    if trap.file_type == 'vtk':
+        coord_x, coord_y, coord_z = trap.result_rf1.grid.to_xyz()
+        trap.x, trap.y, trap.z = coord_x, coord_y, coord_z
+    else: 
+        coords = trap.result_rf1.coords
+        coord_x, coord_y, coord_z = np.array(coords['x']) * trap.scale, \
+                                    np.array(coords['y']) * trap.scale, \
+                                    np.array(coords['z']) * trap.scale
+    
+    
     pp_rf = trap.pp_rf
     scale = trap.l0
     a = int(np.floor(pp_rf.shape[0]/2))
@@ -595,15 +641,25 @@ def analyze_d_eff(trap, dc_electrode='DC12', direction='y',
     rf_null = trap.rf_null_z
     rf_null_index = trap.rf_null_index
     scale = trap.l0 
-    result_dc = Result.from_vtk(trap.prefix, trap.electrode_file_lookup[dc_electrode])
-    coord_x, coord_y, coord_z = result_dc.grid.to_xyz()
+    if trap.file_type == 'vtk':
+        result_dc = Result.from_vtk(trap.prefix, trap.electrode_file_lookup[dc_electrode])
+        coord_x, coord_y, coord_z = result_dc.grid.to_xyz()
+        field_grid = result_dc.field
+    else: 
+        result_dc = trap.electrodes[dc_electrode].potential(derivative=1) 
+        coords = result_dc.coords
+        coord_x, coord_y, coord_z = np.array(coords['x']) * trap.scale, \
+                                    np.array(coords['y']) * trap.scale, \
+                                    np.array(coords['z']) * trap.scale
+        field_grid = np.array(result_dc) / trap.scale
     trap.x, trap.y, trap.z = coord_x, coord_y, coord_z
     axis = ['x', 'y', 'z'].index(direction)
-    
-    field_grid = result_dc.field
     a = int(np.floor(field_grid.shape[0]/2))
     b = int(np.floor(field_grid.shape[1]/2))
-    rf0_field = field_grid[axis] / scale # V/m
+    if trap.file_type == 'vtk': 
+        rf0_field = field_grid[axis] / scale # V/m
+    else:
+        rf0_field = field_grid[:,:,:,axis] / scale
     
     if force_center:  # force the rf null to be at the center of z
         rf_null_index = len(rf0_field[a,b,:])//2

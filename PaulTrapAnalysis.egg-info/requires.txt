@@ -7,8 +7,9 @@ matplotlib
 tqdm
 plotly
 scikit-learn
-pyvista
+pyvista==0.40.1
 xarray
 cvxpy
 sympy
 cvxopt
+bem@ https://github.com/HaeffnerLab/bem/tarball/master

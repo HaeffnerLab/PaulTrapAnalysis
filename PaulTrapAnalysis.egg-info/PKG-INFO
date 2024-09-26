@@ -1,10 +1,10 @@
 Metadata-Version: 2.1
 Name: PaulTrapAnalysis
-Version: 1.0.0
+Version: 2.0.0
 Summary: Toolkit for developing and analyzing RF Paul traps
 Home-page: https://github.com/Andris-Huang/PaulTrapAnalysis
-Author: Qian Yu, Shuqi Xu, Andris Huang
+Author: Shuqi Xu, Qian Yu, Andris Huang
 Keywords: Quantum Information Processing,RF Engineering,Paul Traps
 Classifier: Programming Language :: Python :: 3.9
 
-Designing the trapped electron setups
+Analyzing RF Paul traps

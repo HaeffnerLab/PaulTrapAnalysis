@@ -45,13 +45,23 @@ class MultipoleControl:
 
     controlled_elecs = None
     used_multipoles = None
+    shorted_groups = OrderedDict() # {representative: [representative, member1, ...]}
 
     expansion_matrix = pd.DataFrame()
     pinv_matrix = pd.DataFrame()
 
-    def __init__(self, trap, origin, roi, controlled_electrodes, used_multipoles, order = 2):
+    def __init__(self, trap, origin, roi, controlled_electrodes, used_multipoles, order = 2, shorted_groups = None):
         '''
         trap is an object created by the imported class Trap
+
+        shorted_groups : dict, optional
+            Electrodes that are shorted to each other (but not to ground), given as
+            {representative: [other members]}, e.g. {'DC1': ['DC13', 'DC15']}.
+            Each group is treated as ONE electrode whose basis potential is the sum of
+            its members' potentials, so the solver accounts for the field of every
+            shorted electrode. Only the representative may be in controlled_electrodes;
+            its voltage is applied to all members in setVoltages, potentialControl_*
+            and write_txt.
         '''
 
         self.trap = trap
@@ -61,6 +71,7 @@ class MultipoleControl:
         self.controlled_elecs = controlled_electrodes
         self.used_multipoles = used_multipoles
         self.order = order
+        self.set_shorted_groups(shorted_groups, update = False)
 
         # Below setting up origin and region of interest and so on
         self.update_origin_roi(origin, roi)
@@ -102,12 +113,64 @@ class MultipoleControl:
         '''
         self.controlled_elecs = controlled_electrodes
         self.used_multipoles = used_multipoles
-        trim_elecs = self.multipole_expansion[self.controlled_elecs]
+        self._check_controlled()
+        # each controlled electrode contributes the summed expansion of every electrode shorted to it
+        trim_elecs = pd.DataFrame({e: self.multipole_expansion[self.group_members(e)].sum(axis = 1)
+                                   for e in self.controlled_elecs})
         self.expansion_matrix = trim_elecs.loc[self.used_multipoles]
 
         
         self.pinv_matrix = pd.DataFrame(np.linalg.pinv(self.expansion_matrix), self.expansion_matrix.columns, self.expansion_matrix.index)
         return self.expansion_matrix, self.pinv_matrix
+
+    def set_shorted_groups(self, shorted_groups, update = True):
+        '''
+        Define electrodes that are shorted together (not to ground). See __init__ for the format.
+        Call with update = True (default) on an existing object to recompute the control matrix.
+        '''
+        groups = OrderedDict()
+        owner = {}
+        for rep, members in (shorted_groups or {}).items():
+            if isinstance(members, str):
+                members = [members]
+            full = [rep] + [m for m in members if m != rep]
+            for m in full:
+                if m in owner:
+                    raise ValueError(f"Electrode '{m}' is in more than one shorted group ('{owner[m]}' and '{rep}').")
+                owner[m] = rep
+            groups[rep] = full
+        unknown = [m for m in owner if m not in self.trap.electrodes]
+        if unknown:
+            raise ValueError(f"Shorted-group electrodes {unknown} are not in the trap.")
+        self.shorted_groups = groups
+        self._group_of = owner
+        if update:
+            self.update_control(self.controlled_elecs, self.used_multipoles)
+
+    def group_members(self, name):
+        '''All electrodes that are shorted to `name` and share its voltage (just [name] if not in a group).'''
+        rep = self._group_of.get(name, name)
+        return self.shorted_groups.get(rep, [name])
+
+    def _check_controlled(self):
+        members = [e for e in self.controlled_elecs if self._group_of.get(e, e) != e]
+        if members:
+            raise ValueError(f"{members} are shorted to another electrode; put only the group representative "
+                             f"({[self._group_of[e] for e in members]}) in controlled_electrodes.")
+
+    def expand_group_voltages(self, voltages):
+        '''
+        Returns {electrode: voltage} where the voltage of each group representative is copied to
+        every electrode shorted to it.
+        '''
+        out = OrderedDict()
+        for key in voltages.keys():
+            members = self.shorted_groups.get(key, [key])
+            for m in members:
+                if m != key and m in voltages.keys():
+                    raise ValueError(f"'{m}' is shorted to '{key}'; give a voltage for '{key}' only.")
+                out[m] = voltages[key]
+        return out
 
     @staticmethod
     def expand_potentials_spherHarm(potential_roi, r0, order, multipole_names):
@@ -139,11 +202,15 @@ class MultipoleControl:
             potential_regenerated[ele].loc[:] = Vregen.reshape([len(X_roi), len(Y_roi), len(Z_roi), 1])
         return multipoles, potential_regenerated
 
-    def setVoltages(self, voltages):
+    def setVoltages(self, voltages, expand_groups = True):
         '''
         This function takes volteges you apply and returns multipole coefficients you get.
         input i.e. vs = {'DC1':1, 'DC2':2}
+        If expand_groups, a group representative's voltage is also applied to the electrodes shorted to it.
+        Use expand_groups = False to look at individual electrodes on their own.
         '''
+        if expand_groups:
+            voltages = self.expand_group_voltages(voltages)
         M = (self.order + 1)**2
         coeffs = pd.Series(np.zeros(M), index = self.multipole_expansion.index)
         for key in voltages.keys():
@@ -167,6 +234,7 @@ class MultipoleControl:
         This function takes voltages and returns the potential you get over the full space.
         input i.e. vs = {'DC1':1, 'DC2':2}
         '''
+        vs = self.expand_group_voltages(vs)
         for i, key in enumerate(vs.keys()):
             if i == 0:
                 output = self.electrode_potential[key] * vs[key]
@@ -180,6 +248,7 @@ class MultipoleControl:
         This function takes voltages and returns the potential you get over the roi.
         i.e. vs = {'DC1':1, 'DC2':2}
         '''
+        vs = self.expand_group_voltages(vs)
         output_roi = []
         for key in vs.keys():
             output_roi.append(self.electrode_potential_roi[key] * vs[key])
@@ -191,26 +260,51 @@ class MultipoleControl:
         This function takes voltages and returns the potential regenerated from multipole coefficients over the roi.
         i.e. vs = {'DC1':1, 'DC2':2}
         '''
+        vs = self.expand_group_voltages(vs)
         output_roi = []
         for key in vs.keys():
             output_roi.append(self.electrode_potential_regenerated[key] * vs[key])
 
         return sum(output_roi)
     
-    def write_txt(self,filename,strs,excl):
+    def write_txt(self, filename, strs, excl = None):
+        '''
+        Writes the pseudo-inverse column of every electrode in strs (in that order) for each multipole.
+        Electrodes in a shorted group get their representative's values automatically.
+
+        excl : dict, optional. {electrode: "gnd"} writes 0 for a grounded electrode.
+            Tying one electrode to another ({'DC6': 'DC2'}) is only accepted when both are in the
+            same shorted group. Otherwise the solution would have treated the tied electrode as
+            grounded while the file drives it, so a ValueError is raised: use shorted_groups instead.
+        '''
+        excl = excl or {}
+        source = {}
+        for key in strs:
+            rep = self._group_of.get(key, key)
+            target = excl.get(key)
+            if target == "gnd":
+                if rep in self.controlled_elecs:
+                    raise ValueError(f"'{key}' is set to gnd in excl but is controlled"
+                                     + (f" through its group '{rep}'" if rep != key else "") + ".")
+                source[key] = None
+                continue
+            if target is not None and self._group_of.get(target, target) != rep:
+                raise ValueError(f"excl ties '{key}' to '{target}', but they are not in the same shorted group, "
+                                 f"so the solution does not account for '{key}' at that voltage. "
+                                 f"Add them to shorted_groups instead.")
+            if rep not in self.controlled_elecs:
+                raise ValueError(f"'{key}' is neither controlled (directly or through a shorted group) "
+                                 f"nor marked 'gnd' in excl.")
+            source[key] = rep
+
         outarray = []
         allmpl = ['Ex', 'Ey', 'Ez','U1', 'U2', 'U3', 'U4','U5']
         for multipole in allmpl:
-            if multipole in self.pinv_matrix:
-                for key in strs:
-                    if key not in excl:
-                        outarray = np.append(outarray, self.pinv_matrix[multipole][key])
-                    elif excl[key] != "gnd":
-                        outarray = np.append(outarray, self.pinv_matrix[multipole][excl[key]])
-                    else:
-                        outarray = np.append(outarray, 0)
-            else:
-                outarray = np.append(outarray,np.zeros(21))
+            for key in strs:
+                if multipole in self.pinv_matrix and source[key] is not None:
+                    outarray.append(self.pinv_matrix[multipole][source[key]])
+                else:
+                    outarray.append(0.)
         print(np.shape(outarray))
         pd.DataFrame(outarray).to_csv(filename+'.txt', header=None, index=None, float_format='%.15f')
 

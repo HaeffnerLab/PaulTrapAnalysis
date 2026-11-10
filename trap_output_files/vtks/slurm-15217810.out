@@ -1,0 +1,6 @@
+/global/home/users/sqxu/.conda/envs/bem39/lib/python3.9/site-packages/bem/grid.py:54: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
+  xyz = np.array([np.linspace(c-s*(h-1)/2., c+s*(h-1)/2.,h)
+INFO:ipyparallel.cluster.cluster.1694725925-0pcr:Starting 20 engines with <class 'ipyparallel.cluster.launcher.LocalEngineSetLauncher'>
+Stopping cluster <Cluster(cluster_id='1694725925-0pcr', profile='default', controller=<running>, engine_sets=['1694725928'])>
+INFO:ipyparallel.cluster.cluster.1694725925-0pcr:Stopping controller
+INFO:ipyparallel.cluster.cluster.1694725925-0pcr:Stopping engine(s): 1694725928

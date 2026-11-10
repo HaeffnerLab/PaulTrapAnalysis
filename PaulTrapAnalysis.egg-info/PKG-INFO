@@ -1,4 +1,4 @@
-Metadata-Version: 2.1
+Metadata-Version: 2.4
 Name: PaulTrapAnalysis
 Version: 2.0.0
 Summary: Toolkit for developing and analyzing RF Paul traps
@@ -6,5 +6,27 @@ Home-page: https://github.com/Andris-Huang/PaulTrapAnalysis
 Author: Shuqi Xu, Qian Yu, Andris Huang
 Keywords: Quantum Information Processing,RF Engineering,Paul Traps
 Classifier: Programming Language :: Python :: 3.9
+Requires-Dist: future
+Requires-Dist: numpy
+Requires-Dist: scipy
+Requires-Dist: pandas
+Requires-Dist: setuptools
+Requires-Dist: matplotlib
+Requires-Dist: tqdm
+Requires-Dist: plotly
+Requires-Dist: scikit-learn
+Requires-Dist: pyvista==0.40.1
+Requires-Dist: xarray
+Requires-Dist: cvxpy
+Requires-Dist: sympy
+Requires-Dist: cvxopt
+Requires-Dist: bem @ https://github.com/HaeffnerLab/bem/tarball/master
+Dynamic: author
+Dynamic: classifier
+Dynamic: description
+Dynamic: home-page
+Dynamic: keywords
+Dynamic: requires-dist
+Dynamic: summary
 
 Analyzing RF Paul traps

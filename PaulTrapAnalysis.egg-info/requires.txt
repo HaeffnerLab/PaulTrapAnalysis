@@ -12,4 +12,4 @@ xarray
 cvxpy
 sympy
 cvxopt
-bem@ https://github.com/HaeffnerLab/bem/tarball/master
+bem @ https://github.com/HaeffnerLab/bem/tarball/master

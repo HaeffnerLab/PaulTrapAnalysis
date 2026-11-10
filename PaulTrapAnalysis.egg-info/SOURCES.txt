@@ -7,8 +7,6 @@ PaulTrapAnalysis.egg-info/SOURCES.txt
 PaulTrapAnalysis.egg-info/dependency_links.txt
 PaulTrapAnalysis.egg-info/requires.txt
 PaulTrapAnalysis.egg-info/top_level.txt
-PaulTrapAnalysis/scripts/download
-PaulTrapAnalysis/scripts/upload
 PaulTrapAnalysis/__pycache__/__init__.cpython-38.pyc
 PaulTrapAnalysis/components/Electrode.py
 PaulTrapAnalysis/components/Multipoles.py
@@ -53,11 +51,8 @@ PaulTrapAnalysis/functions/__pycache__/utils.cpython-38.pyc
 PaulTrapAnalysis/scripts/download
 PaulTrapAnalysis/scripts/upload
 notebooks/3d_trap21_cfile.csv
-notebooks/all_errors.csv
 notebooks/example.ipynb
-notebooks/pipeline.ipynb
 notebooks/.ipynb_checkpoints/example-checkpoint.ipynb
-notebooks/.ipynb_checkpoints/pipeline-checkpoint.ipynb
 server_scripts/download.sh
 server_scripts/saviojob.sh
 server_scripts/submit.sh
